@@ -834,6 +834,30 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   const TRIP_START = "2026-10-08";
   const TRIP_END = "2026-10-17";
 
+  // ---------- Weather: shows the forecast for whichever location is assigned to the
+  // currently selected day tab (e.g. Basel on arrival day, Welsberg once you're there) ----------
+  const DEFAULT_LOCATION = { name: 'Basel', lat: 47.5596, lon: 7.5886 };
+  const LOCATION_PRESETS = [
+    { name: 'Basel', lat: 47.5596, lon: 7.5886 },
+    { name: 'Eguisheim', lat: 48.0453, lon: 7.3078 },
+    { name: 'Neuchâtel', lat: 46.9900, lon: 6.9293 },
+    { name: 'Reschen/Graun', lat: 46.8415, lon: 10.5106 },
+    { name: 'Welsberg (Südtirol)', lat: 46.7339, lon: 12.1744 },
+    { name: 'Bozen', lat: 46.4983, lon: 11.3548 }
+  ];
+
+  function addDaysToDateStr(dateStr, days) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function getDayLocation(date) {
+    const day = tripData[date];
+    if (day && day.location && day.location.lat != null && day.location.lon != null) return day.location;
+    return DEFAULT_LOCATION;
+  }
+
   // ---------- Date helpers ----------
   function dateRange(startStr, endStr) {
     const dates = [];
@@ -1861,30 +1885,6 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         adminSave.textContent = 'Speichern';
       });
   });
-
-  // ---------- Weather: shows the forecast for whichever location is assigned to the
-  // currently selected day tab (e.g. Basel on arrival day, Welsberg once you're there) ----------
-  const DEFAULT_LOCATION = { name: 'Basel', lat: 47.5596, lon: 7.5886 };
-  const LOCATION_PRESETS = [
-    { name: 'Basel', lat: 47.5596, lon: 7.5886 },
-    { name: 'Eguisheim', lat: 48.0453, lon: 7.3078 },
-    { name: 'Neuchâtel', lat: 46.9900, lon: 6.9293 },
-    { name: 'Reschen/Graun', lat: 46.8415, lon: 10.5106 },
-    { name: 'Welsberg (Südtirol)', lat: 46.7339, lon: 12.1744 },
-    { name: 'Bozen', lat: 46.4983, lon: 11.3548 }
-  ];
-
-  function getDayLocation(date) {
-    const day = tripData[date];
-    if (day && day.location && day.location.lat != null && day.location.lon != null) return day.location;
-    return DEFAULT_LOCATION;
-  }
-
-  function addDaysToDateStr(dateStr, days) {
-    const d = new Date(dateStr + 'T00:00:00');
-    d.setDate(d.getDate() + days);
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-  }
 
   function weatherIcon(code) {
     const map = {
