@@ -239,6 +239,11 @@
     margin-bottom: 4px;
   }
   .event .rich-content p { margin: 0 0 6px 0; }
+  .event .rich-content a, .event .expandable-body a {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .event .rich-content a:hover, .event .expandable-body a:hover { opacity: 0.8; }
   .star {
     position: absolute;
     top: 12px;
@@ -509,6 +514,22 @@
     font-weight: 600;
     color: #555;
   }
+  .field-row-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .field-move {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.78rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .field-move:hover:not(:disabled) { color: var(--accent); background: var(--accent-light); }
+  .field-move:disabled { opacity: 0.25; cursor: default; }
   .field-remove {
     background: none;
     border: none;
@@ -519,6 +540,17 @@
   }
   .field-remove:hover { color: #c0392b; }
   .field-row input[type="text"] { margin-bottom: 0; }
+  .field-row.nested {
+    margin-left: 10px;
+    border-left: 3px solid var(--accent-light);
+    background: #f4faf9;
+  }
+  .nested-fields-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 8px 0;
+  }
   .add-field-row, .add-event-templates {
     display: flex;
     gap: 6px;
@@ -934,8 +966,28 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
       expandables.forEach(f => {
         const label = f.label || 'Details anzeigen';
+        let bodyHtml;
+        if (Array.isArray(f.children)) {
+          const childTexts = f.children.filter(c => c.type === 'richtext' && c.value);
+          const childLinks = f.children.filter(c => c.type === 'link' && c.value);
+          const childImages = f.children.filter(c => c.type === 'image' && c.value);
+          bodyHtml = '';
+          childTexts.forEach(c => { bodyHtml += '<div class="rich-content">' + c.value + '</div>'; });
+          if (childLinks.length) {
+            bodyHtml += '<div class="links">' + childLinks.map(c =>
+              '<a href="' + escapeAttr(c.value) + '" target="_blank" rel="noopener">🔗 Link öffnen</a>'
+            ).join('') + '</div>';
+          }
+          if (childImages.length) {
+            bodyHtml += '<div class="photos">' + childImages.map((c, ci) =>
+              '<img class="photo-thumb expandable-photo" data-field-id="' + f.id + '" data-idx="' + ci + '" src="' + escapeAttr(c.value) + '" alt="' + escapeAttr(ev.title) + '" loading="lazy">'
+            ).join('') + '</div>';
+          }
+        } else {
+          bodyHtml = f.value; // legacy expandable field: raw HTML/text as authored
+        }
         html += '<button type="button" class="expand-toggle" data-label="' + escapeAttr(label) + '">▼ ' + escapeHtml(label) + '</button>' +
-          '<div class="expandable-body" style="display:none;">' + f.value + '</div>';
+          '<div class="expandable-body" style="display:none;">' + bodyHtml + '</div>';
       });
 
       div.innerHTML = html;
@@ -943,10 +995,21 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
       if (images.length) {
         const urls = images.map(f => f.value);
-        div.querySelectorAll('.photo-thumb').forEach(thumb => {
+        div.querySelectorAll('.photo-thumb:not(.expandable-photo)').forEach(thumb => {
           thumb.addEventListener('click', () => openLightbox(urls, parseInt(thumb.dataset.idx, 10)));
         });
       }
+
+      expandables.forEach(f => {
+        if (Array.isArray(f.children)) {
+          const childImageUrls = f.children.filter(c => c.type === 'image' && c.value).map(c => c.value);
+          if (childImageUrls.length) {
+            div.querySelectorAll('.expandable-photo[data-field-id="' + f.id + '"]').forEach(thumb => {
+              thumb.addEventListener('click', () => openLightbox(childImageUrls, parseInt(thumb.dataset.idx, 10)));
+            });
+          }
+        }
+      });
 
       div.querySelectorAll('.expand-toggle').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1297,50 +1360,44 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     return wrap;
   }
 
-  function buildFieldRow(ev, field) {
-    const info = FIELD_TYPE_INFO[field.type];
-    const row = document.createElement('div');
-    row.className = 'field-row';
+  // Moves the item at index `from` to index `to` within an array, in place.
+  function moveInArray(arr, from, to) {
+    if (to < 0 || to >= arr.length) return;
+    const [item] = arr.splice(from, 1);
+    arr.splice(to, 0, item);
+  }
 
-    const header = document.createElement('div');
-    header.className = 'field-row-header';
-    const labelSpan = document.createElement('span');
-    labelSpan.className = 'field-label';
-    labelSpan.textContent = info.icon + ' ' + info.label;
-    const removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'field-remove';
-    removeBtn.textContent = '✕ entfernen';
-    removeBtn.addEventListener('click', () => {
-      ev.fields = ev.fields.filter(f => f.id !== field.id);
-      renderAdminEvents();
-    });
-    header.appendChild(labelSpan);
-    header.appendChild(removeBtn);
-    row.appendChild(header);
+  // Builds just the input/editor control for a field's value (no header, no remove/move
+  // buttons). Shared between top-level event fields and the nested fields inside an
+  // "expandable" field. `typeOverride` lets the same richtext editor be reused for the
+  // legacy single-value "expandable" fields (which store their content in `field.value`
+  // directly rather than in `field.children`).
+  function buildFieldEditorContent(field, typeOverride) {
+    const type = typeOverride || field.type;
+    const wrap = document.createElement('div');
 
-    if (field.type === 'time') {
+    if (type === 'time') {
       const input = document.createElement('input');
       input.type = 'text';
       input.placeholder = '14:00';
       input.value = field.value || '';
       input.addEventListener('input', e => field.value = e.target.value);
-      row.appendChild(input);
-    } else if (field.type === 'image') {
+      wrap.appendChild(input);
+    } else if (type === 'image') {
       const input = document.createElement('input');
       input.type = 'text';
       input.placeholder = 'Bild-URL';
       input.value = field.value || '';
       input.addEventListener('input', e => field.value = e.target.value);
-      row.appendChild(input);
-    } else if (field.type === 'link') {
+      wrap.appendChild(input);
+    } else if (type === 'link') {
       const input = document.createElement('input');
       input.type = 'text';
       input.placeholder = 'https://...';
       input.value = field.value || '';
       input.addEventListener('input', e => field.value = e.target.value);
-      row.appendChild(input);
-    } else if (field.type === 'richtext') {
+      wrap.appendChild(input);
+    } else if (type === 'richtext') {
       const toolbar = document.createElement('div');
       toolbar.className = 'rte-toolbar';
       const editable = document.createElement('div');
@@ -1367,6 +1424,41 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       toolbar.appendChild(mkBtn('underline', 'U', 'Unterstrichen'));
       toolbar.appendChild(mkBtn('strikeThrough', 'S', 'Durchgestrichen'));
 
+      const linkBtn = document.createElement('button');
+      linkBtn.type = 'button';
+      linkBtn.textContent = '🔗';
+      linkBtn.title = 'Markierten Text verlinken';
+      linkBtn.addEventListener('mousedown', e => {
+        e.preventDefault();
+        const sel = window.getSelection();
+        if (sel.isCollapsed || !editable.contains(sel.anchorNode)) {
+          alert('Bitte zuerst den Text markieren, der verlinkt werden soll (z. B. den Hotelnamen).');
+          return;
+        }
+        const url = window.prompt('Link-Adresse (URL):', 'https://');
+        if (!url) return;
+        editable.focus();
+        document.execCommand('createLink', false, url);
+        editable.querySelectorAll('a').forEach(a => {
+          a.setAttribute('target', '_blank');
+          a.setAttribute('rel', 'noopener');
+        });
+        field.value = editable.innerHTML;
+      });
+      toolbar.appendChild(linkBtn);
+
+      const unlinkBtn = document.createElement('button');
+      unlinkBtn.type = 'button';
+      unlinkBtn.textContent = '🔗✕';
+      unlinkBtn.title = 'Verlinkung entfernen (Cursor in den Link setzen)';
+      unlinkBtn.addEventListener('mousedown', e => {
+        e.preventDefault();
+        editable.focus();
+        document.execCommand('unlink', false, null);
+        field.value = editable.innerHTML;
+      });
+      toolbar.appendChild(unlinkBtn);
+
       const sizeSelect = document.createElement('select');
       [['2','Klein'], ['3','Normal'], ['5','Groß'], ['7','Riesig']].forEach(([val, label]) => {
         const opt = document.createElement('option');
@@ -1383,9 +1475,80 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       });
       toolbar.appendChild(sizeSelect);
 
-      row.appendChild(toolbar);
-      row.appendChild(editable);
-    } else if (field.type === 'expandable') {
+      wrap.appendChild(toolbar);
+      wrap.appendChild(editable);
+    }
+
+    return wrap;
+  }
+
+  // Header row shared by top-level and nested fields: type label + move up/down + remove.
+  function buildFieldHeader(info, arr, item, onRemove) {
+    const header = document.createElement('div');
+    header.className = 'field-row-header';
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'field-label';
+    labelSpan.textContent = info.icon + ' ' + info.label;
+    header.appendChild(labelSpan);
+
+    const controls = document.createElement('div');
+    controls.className = 'field-row-controls';
+    const idx = arr.indexOf(item);
+
+    const upBtn = document.createElement('button');
+    upBtn.type = 'button';
+    upBtn.className = 'field-move';
+    upBtn.textContent = '▲';
+    upBtn.title = 'Nach oben verschieben';
+    upBtn.disabled = idx <= 0;
+    upBtn.addEventListener('click', () => { moveInArray(arr, idx, idx - 1); renderAdminEvents(); });
+
+    const downBtn = document.createElement('button');
+    downBtn.type = 'button';
+    downBtn.className = 'field-move';
+    downBtn.textContent = '▼';
+    downBtn.title = 'Nach unten verschieben';
+    downBtn.disabled = idx === -1 || idx >= arr.length - 1;
+    downBtn.addEventListener('click', () => { moveInArray(arr, idx, idx + 1); renderAdminEvents(); });
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'field-remove';
+    removeBtn.textContent = '✕';
+    removeBtn.title = 'Entfernen';
+    removeBtn.addEventListener('click', onRemove);
+
+    controls.appendChild(upBtn);
+    controls.appendChild(downBtn);
+    controls.appendChild(removeBtn);
+    header.appendChild(controls);
+    return header;
+  }
+
+  // A field nested inside an "expandable" field's children list (image/link/richtext).
+  function buildNestedFieldRow(childrenArr, child) {
+    const info = FIELD_TYPE_INFO[child.type];
+    const row = document.createElement('div');
+    row.className = 'field-row nested';
+    row.appendChild(buildFieldHeader(info, childrenArr, child, () => {
+      const i = childrenArr.indexOf(child);
+      if (i > -1) childrenArr.splice(i, 1);
+      renderAdminEvents();
+    }));
+    row.appendChild(buildFieldEditorContent(child));
+    return row;
+  }
+
+  function buildFieldRow(ev, field) {
+    const info = FIELD_TYPE_INFO[field.type];
+    const row = document.createElement('div');
+    row.className = 'field-row';
+    row.appendChild(buildFieldHeader(info, ev.fields, field, () => {
+      ev.fields = ev.fields.filter(f => f.id !== field.id);
+      renderAdminEvents();
+    }));
+
+    if (field.type === 'expandable') {
       const labelInput = document.createElement('input');
       labelInput.type = 'text';
       labelInput.placeholder = 'Button-Text, z. B. "Route im Detail anzeigen"';
@@ -1394,56 +1557,49 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       labelInput.addEventListener('input', e => field.label = e.target.value);
       row.appendChild(labelInput);
 
-      const toolbar = document.createElement('div');
-      toolbar.className = 'rte-toolbar';
-      const editable = document.createElement('div');
-      editable.className = 'rte-box';
-      editable.contentEditable = 'true';
-      editable.innerHTML = field.value || '';
-      editable.addEventListener('input', () => field.value = editable.innerHTML);
+      // Brand-new field with nothing in it yet: start it in the modern, structured mode.
+      // A field that already has legacy HTML in `.value` keeps using that (see below),
+      // so nothing already saved gets hidden or lost.
+      if (!Array.isArray(field.children) && !field.value) {
+        field.children = [];
+      }
 
-      const mkBtn = (cmd, label, title) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.textContent = label;
-        b.title = title;
-        b.addEventListener('mousedown', e => {
-          e.preventDefault();
-          editable.focus();
-          document.execCommand(cmd, false, null);
-          field.value = editable.innerHTML;
+      if (Array.isArray(field.children)) {
+        const childrenContainer = document.createElement('div');
+        childrenContainer.className = 'nested-fields-container';
+        field.children.forEach(child => {
+          childrenContainer.appendChild(buildNestedFieldRow(field.children, child));
         });
-        return b;
-      };
-      toolbar.appendChild(mkBtn('bold', 'B', 'Fett'));
-      toolbar.appendChild(mkBtn('italic', 'I', 'Kursiv'));
-      toolbar.appendChild(mkBtn('underline', 'U', 'Unterstrichen'));
-      toolbar.appendChild(mkBtn('strikeThrough', 'S', 'Durchgestrichen'));
+        row.appendChild(childrenContainer);
 
-      const sizeSelect = document.createElement('select');
-      [['2','Klein'], ['3','Normal'], ['5','Groß'], ['7','Riesig']].forEach(([val, label]) => {
-        const opt = document.createElement('option');
-        opt.value = val;
-        opt.textContent = label;
-        sizeSelect.appendChild(opt);
-      });
-      sizeSelect.value = '3';
-      sizeSelect.addEventListener('mousedown', e => e.stopPropagation());
-      sizeSelect.addEventListener('change', () => {
-        editable.focus();
-        document.execCommand('fontSize', false, sizeSelect.value);
-        field.value = editable.innerHTML;
-      });
-      toolbar.appendChild(sizeSelect);
-
-      row.appendChild(toolbar);
-      row.appendChild(editable);
-      const hint = document.createElement('div');
-      hint.style.fontSize = '0.72rem';
-      hint.style.color = 'var(--muted)';
-      hint.style.marginTop = '4px';
-      hint.textContent = 'Tipp: Für Tabellen (z. B. Routenpläne) kann auch HTML eingefügt werden.';
-      row.appendChild(hint);
+        const addChildRow = document.createElement('div');
+        addChildRow.className = 'add-field-row';
+        ['richtext', 'image', 'link'].forEach(type => {
+          const typeInfo = FIELD_TYPE_INFO[type];
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn-add-field';
+          b.textContent = '+ ' + typeInfo.icon + ' ' + typeInfo.label;
+          b.addEventListener('click', () => {
+            field.children.push(mkField(type));
+            renderAdminEvents();
+          });
+          addChildRow.appendChild(b);
+        });
+        row.appendChild(addChildRow);
+      } else {
+        // Legacy expandable field (created before images/links were supported inside it):
+        // keep editing it as a single rich-text/HTML block.
+        row.appendChild(buildFieldEditorContent(field, 'richtext'));
+        const hint = document.createElement('div');
+        hint.style.fontSize = '0.72rem';
+        hint.style.color = 'var(--muted)';
+        hint.style.marginTop = '4px';
+        hint.textContent = 'Älteres Format (nur Text/HTML, z. B. für Tabellen). Neu hinzugefügte ausklappbare Felder unterstützen zusätzlich Bilder und Links in frei wählbarer Reihenfolge.';
+        row.appendChild(hint);
+      }
+    } else {
+      row.appendChild(buildFieldEditorContent(field));
     }
 
     return row;
