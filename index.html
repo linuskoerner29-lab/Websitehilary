@@ -164,6 +164,18 @@
   }
   .weather-toggle:hover { background: var(--accent-light); }
   .weather-details { margin-top: 6px; }
+  .weather-chart {
+    width: 100%;
+    margin-bottom: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .weather-chart svg { display: block; height: 170px; width: 640px; }
+  .weather-chart-hint {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin: -2px 0 6px 0;
+  }
   @media (max-width: 800px) {
     .page-layout { flex-direction: column; }
     .weather-panel {
@@ -1260,6 +1272,80 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     return map[code] || '🌡️';
   }
 
+  // Builds an inline SVG temperature curve for the whole day: temperature every hour,
+  // a weather icon every 2 hours, hour labels only every 6 hours. The part of the day
+  // that has already passed is shown grayed out.
+  function buildHourlyChart(hourly, currentHour) {
+    const temps = hourly.temperature_2m.slice(0, 24);
+    const codes = hourly.weather_code.slice(0, 24);
+
+    const W = 640, H = 170;
+    const leftPad = 20, rightPad = 20;
+    const chartTop = 50, chartBottom = 140;
+    const xStep = (W - leftPad - rightPad) / 23;
+    const minT = Math.min(...temps);
+    const maxT = Math.max(...temps);
+    const range = Math.max(maxT - minT, 2);
+
+    const xAt = i => leftPad + i * xStep;
+    const yAt = t => chartTop + (chartBottom - chartTop) - ((t - minT) / range) * (chartBottom - chartTop);
+
+    function smoothPath(indices) {
+      if (indices.length < 2) return '';
+      let d = 'M ' + xAt(indices[0]) + ' ' + yAt(temps[indices[0]]);
+      for (let k = 1; k < indices.length; k++) {
+        const i0 = indices[k - 1], i1 = indices[k];
+        const xc = (xAt(i0) + xAt(i1)) / 2;
+        const yc = (yAt(temps[i0]) + yAt(temps[i1])) / 2;
+        d += ' Q ' + xAt(i0) + ' ' + yAt(temps[i0]) + ' ' + xc + ' ' + yc;
+      }
+      const last = indices[indices.length - 1];
+      d += ' T ' + xAt(last) + ' ' + yAt(temps[last]);
+      return d;
+    }
+
+    const pastIdx = [];
+    const futureIdx = [];
+    for (let i = 0; i <= currentHour && i < 24; i++) pastIdx.push(i);
+    for (let i = currentHour; i < 24; i++) futureIdx.push(i);
+
+    let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
+
+    // "now" marker
+    const nowX = xAt(currentHour);
+    svg += '<line x1="' + nowX + '" y1="' + chartTop + '" x2="' + nowX + '" y2="' + chartBottom + '" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>';
+
+    const pastPath = smoothPath(pastIdx);
+    const futurePath = smoothPath(futureIdx);
+    if (pastPath) svg += '<path d="' + pastPath + '" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>';
+    if (futurePath) svg += '<path d="' + futurePath + '" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>';
+
+    for (let i = 0; i < 24; i++) {
+      const isPast = i < currentHour;
+      const dotColor = isPast ? 'var(--muted)' : 'var(--accent)';
+      const textColor = isPast ? 'var(--muted)' : 'var(--text)';
+      const opacity = isPast ? 0.55 : 1;
+      const x = xAt(i), y = yAt(temps[i]);
+
+      // temperature: every hour
+      svg += '<circle cx="' + x + '" cy="' + y + '" r="2.3" fill="' + dotColor + '" opacity="' + opacity + '"/>';
+      svg += '<text x="' + x + '" y="' + (y - 8) + '" font-size="10" text-anchor="middle" fill="' + textColor + '" opacity="' + opacity + '">' + Math.round(temps[i]) + '°</text>';
+
+      // weather icon: every 2 hours
+      if (i % 2 === 0) {
+        svg += '<text x="' + x + '" y="22" font-size="15" text-anchor="middle" opacity="' + (isPast ? 0.45 : 1) + '">' + weatherIcon(codes[i]) + '</text>';
+      }
+
+      // hour label: every 6 hours
+      if (i % 6 === 0) {
+        svg += '<text x="' + x + '" y="' + (H - 8) + '" font-size="10" text-anchor="middle" fill="var(--muted)" opacity="' + (isPast ? 0.55 : 1) + '">' + String(i).padStart(2,'0') + ' Uhr</text>';
+      }
+    }
+
+    svg += '</svg>';
+    return svg;
+  }
+
   async function loadWeather(loc) {
     const card = document.getElementById(loc.elId);
     const summaryEl = card.querySelector('.weather-summary');
@@ -1289,18 +1375,11 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
           '<span class="icon">' + tIcon + '</span>' +
           '<span class="temps">' + tMax + '°<span class="min">/' + tMin + '°</span></span></div>';
 
-      // Expandable: remaining 4-hour blocks of today + the rest of the week
+      // Expandable: temperature curve for the rest of today + the rest of the week
       const currentHour = parseInt(cw.time.slice(11, 13), 10);
-      const blockStart = Math.floor(currentHour / 4) * 4;
-      let detailsHtml = '<div class="weather-section-label">Heute im Detail</div>';
-      for (let s = blockStart; s < 24; s += 4) {
-        const code = data.hourly.weather_code[s];
-        const temp = Math.round(data.hourly.temperature_2m[s]);
-        const label = String(s).padStart(2,'0') + '–' + String(s + 4).padStart(2,'0');
-        detailsHtml += '<div class="weather-day-row"><span class="wd">' + label + '</span>' +
-          '<span class="icon">' + weatherIcon(code) + '</span>' +
-          '<span class="temps">' + temp + '°</span></div>';
-      }
+      let detailsHtml = '<div class="weather-section-label">Heute im Verlauf</div>';
+      detailsHtml += '<div class="weather-chart-hint">← zur Seite wischen/scrollen →</div>';
+      detailsHtml += '<div class="weather-chart">' + buildHourlyChart(data.hourly, currentHour) + '</div>';
       detailsHtml += '<div class="weather-section-label">Diese Woche</div>';
       const days = data.daily.time;
       for (let i = 1; i < days.length; i++) {
