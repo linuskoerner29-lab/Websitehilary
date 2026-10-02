@@ -90,10 +90,68 @@
   }
   .tab.active .wd, .tab.active .dt { color: white; }
 
+  .page-layout {
+    max-width: 980px;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+  }
   main {
     max-width: 720px;
+    flex: 1;
+    min-width: 0;
     margin: 20px auto;
     padding: 0 16px 60px 16px;
+  }
+  .weather-panel {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 20px;
+    padding-left: 16px;
+  }
+  .weather-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .weather-card h4 {
+    margin: 0 0 8px 0;
+    font-size: 0.88rem;
+  }
+  .weather-day-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    padding: 3px 0;
+  }
+  .weather-day-row .wd {
+    color: var(--muted);
+    width: 28px;
+  }
+  .weather-day-row .icon { font-size: 1rem; }
+  .weather-day-row .temps { font-weight: 600; }
+  .weather-day-row .temps .min {
+    color: var(--muted);
+    font-weight: 400;
+    margin-left: 3px;
+  }
+  @media (max-width: 800px) {
+    .page-layout { flex-direction: column; }
+    .weather-panel {
+      width: 100%;
+      flex-direction: row;
+      flex-wrap: wrap;
+      padding-left: 0;
+      margin-top: 12px;
+    }
+    .weather-card { flex: 1; min-width: 150px; }
+    main { margin: 0 auto; }
   }
   .day-heading {
     margin: 4px 0 16px 0;
@@ -442,13 +500,26 @@
   <div class="tabs" id="tabs"></div>
 </header>
 
-<main>
-  <div class="day-heading">
-    <h2 id="dayTitle"></h2>
-    <div class="sub" id="daySub"></div>
-  </div>
-  <div id="eventList"></div>
-</main>
+<div class="page-layout">
+  <aside class="weather-panel" id="weatherPanel">
+    <div class="weather-card" id="weatherBasel">
+      <h4>📍 Basel</h4>
+      <div class="weather-days">Lädt…</div>
+    </div>
+    <div class="weather-card" id="weatherBozen">
+      <h4>📍 Bozen</h4>
+      <div class="weather-days">Lädt…</div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="day-heading">
+      <h2 id="dayTitle"></h2>
+      <div class="sub" id="daySub"></div>
+    </div>
+    <div id="eventList"></div>
+  </main>
+</div>
 
 <!-- Lightbox for viewing images full-size -->
 <div class="lightbox-backdrop" id="lightbox">
@@ -1139,6 +1210,56 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         adminSave.textContent = 'Speichern';
       });
   });
+
+  // ---------- Weather: 7-day forecast for Basel & Bozen, starting from today ----------
+  const WEATHER_LOCATIONS = [
+    { name: 'Basel', lat: 47.5596, lon: 7.5886, elId: 'weatherBasel' },
+    { name: 'Bozen', lat: 46.4983, lon: 11.3548, elId: 'weatherBozen' }
+  ];
+
+  function weatherIcon(code) {
+    const map = {
+      0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+      45: '🌫️', 48: '🌫️',
+      51: '🌦️', 53: '🌦️', 55: '🌦️',
+      56: '🌧️', 57: '🌧️',
+      61: '🌧️', 63: '🌧️', 65: '🌧️',
+      66: '🌨️', 67: '🌨️',
+      71: '❄️', 73: '❄️', 75: '❄️', 77: '❄️',
+      80: '🌦️', 81: '🌦️', 82: '⛈️',
+      85: '🌨️', 86: '🌨️',
+      95: '⛈️', 96: '⛈️', 99: '⛈️'
+    };
+    return map[code] || '🌡️';
+  }
+
+  async function loadWeather(loc) {
+    const card = document.getElementById(loc.elId);
+    const container = card.querySelector('.weather-days');
+    try {
+      const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat + '&longitude=' + loc.lon +
+        '&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const days = data.daily.time;
+      container.innerHTML = days.map((dateStr, i) => {
+        const d = new Date(dateStr + 'T12:00:00');
+        const wd = d.toLocaleDateString('de-DE', { weekday: 'short' });
+        const code = data.daily.weather_code[i];
+        const max = Math.round(data.daily.temperature_2m_max[i]);
+        const min = Math.round(data.daily.temperature_2m_min[i]);
+        return '<div class="weather-day-row"><span class="wd">' + wd + '</span>' +
+          '<span class="icon">' + weatherIcon(code) + '</span>' +
+          '<span class="temps">' + max + '°<span class="min">/' + min + '°</span></span></div>';
+      }).join('');
+    } catch (err) {
+      console.error('Wetter konnte nicht geladen werden:', err);
+      container.innerHTML = '<div style="color:var(--muted); font-size:0.78rem;">Wetter nicht verfügbar</div>';
+    }
+  }
+
+  WEATHER_LOCATIONS.forEach(loadWeather);
 
   // ---------- Init ----------
   renderTabs();
