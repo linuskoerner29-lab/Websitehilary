@@ -427,6 +427,18 @@
   .btn-danger { background: #c0392b; color: white; }
   .error-msg { color: #c0392b; font-size: 0.85rem; margin-top: -4px; margin-bottom: 8px; }
 
+  .bg-image-wrap {
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fafafa;
+  }
+  .bg-image-wrap label {
+    display: block;
+    margin-bottom: 6px;
+  }
+  .bg-image-wrap input { margin-bottom: 0; }
   .admin-daypicker {
     display: flex;
     gap: 4px;
@@ -667,6 +679,10 @@
     </div>
     <div class="admin-note" id="syncStatus">Verbindung wird hergestellt…</div>
     <div id="importPreparedWrap"></div>
+    <div class="bg-image-wrap">
+      <label for="bgImageInput">🖼️ Hintergrundbild (nur hinter Wetter &amp; Events)</label>
+      <input type="text" id="bgImageInput" placeholder="https://... – leer lassen für keinen Hintergrund">
+    </div>
     <div class="admin-daypicker" id="adminDaypicker"></div>
     <div id="adminEventList"></div>
     <label>Neues Event anlegen aus Vorlage</label>
@@ -881,6 +897,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     if (syncStatusEl) {
       syncStatusEl.textContent = 'Verbunden – Änderungen werden geteilt.';
     }
+    applyBackgroundImage();
     renderDay();
     if (adminBackdrop.classList.contains('open')) {
       renderAdminEvents();
@@ -892,6 +909,23 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
   function saveData() {
     return setDoc(tripDocRef, tripData);
+  }
+
+  // Applies the admin-chosen background image to the area behind the weather panel
+  // and the events (the .page-layout wrapper), but not behind the header/day tabs,
+  // which live outside that wrapper.
+  function applyBackgroundImage() {
+    const pageLayoutEl = document.querySelector('.page-layout');
+    if (!pageLayoutEl) return;
+    const url = (tripData.siteSettings && tripData.siteSettings.backgroundImage) || '';
+    if (url) {
+      pageLayoutEl.style.backgroundImage = 'url("' + url.replace(/"/g, '') + '")';
+      pageLayoutEl.style.backgroundSize = 'cover';
+      pageLayoutEl.style.backgroundPosition = 'center';
+      pageLayoutEl.style.backgroundRepeat = 'no-repeat';
+    } else {
+      pageLayoutEl.style.backgroundImage = 'none';
+    }
   }
 
   // ---------- Rendering: Tabs ----------
@@ -1260,10 +1294,18 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   importPreparedWrap.appendChild(importBtn);
 
   function openAdmin() {
+    bgImageInput.value = (tripData.siteSettings && tripData.siteSettings.backgroundImage) || '';
     renderAdminDaypicker();
     renderAdminEvents();
     adminBackdrop.classList.add('open');
   }
+
+  const bgImageInput = document.getElementById('bgImageInput');
+  bgImageInput.addEventListener('input', e => {
+    if (!tripData.siteSettings) tripData.siteSettings = {};
+    tripData.siteSettings.backgroundImage = e.target.value;
+    applyBackgroundImage();
+  });
 
   function renderAdminDaypicker() {
     adminDaypicker.innerHTML = '';
@@ -1612,6 +1654,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   adminClose.addEventListener('click', () => {
     adminBackdrop.classList.remove('open');
     tripData = JSON.parse(JSON.stringify(lastSyncedData || defaultData())); // discard unsaved in-memory edits
+    applyBackgroundImage();
     renderDay();
     signOut(auth).catch(() => {});
     isAdmin = false;
