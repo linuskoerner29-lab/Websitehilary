@@ -166,13 +166,66 @@
     display: flex;
     gap: 8px;
   }
-  .event .photos a img {
+  .event .photos img {
     width: 80px;
     height: 80px;
     object-fit: cover;
     border-radius: 8px;
     border: 1px solid var(--border);
     display: block;
+    cursor: pointer;
+  }
+
+  /* Lightbox */
+  .lightbox-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .lightbox-backdrop.open { display: flex; }
+  .lightbox-backdrop img {
+    max-width: 90vw;
+    max-height: 85vh;
+    object-fit: contain;
+    border-radius: 6px;
+  }
+  .lightbox-close, .lightbox-prev, .lightbox-next {
+    position: absolute;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    font-size: 1.6rem;
+    cursor: pointer;
+    border-radius: 50%;
+    width: 46px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .lightbox-close:hover, .lightbox-prev:hover, .lightbox-next:hover { background: rgba(255,255,255,0.3); }
+  .lightbox-close { top: 16px; right: 16px; }
+  .lightbox-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+  .lightbox-next { right: 16px; top: 50%; transform: translateY(-50%); }
+  .lightbox-counter {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-size: 0.85rem;
+    background: rgba(0,0,0,0.4);
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+  @media (max-width: 600px) {
+    .lightbox-prev, .lightbox-next, .lightbox-close {
+      width: 40px; height: 40px; font-size: 1.3rem;
+    }
   }
   .empty-note {
     color: var(--muted);
@@ -396,6 +449,15 @@
   </div>
   <div id="eventList"></div>
 </main>
+
+<!-- Lightbox for viewing images full-size -->
+<div class="lightbox-backdrop" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose">✕</button>
+  <button class="lightbox-prev" id="lightboxPrev">‹</button>
+  <img id="lightboxImg" src="" alt="">
+  <button class="lightbox-next" id="lightboxNext">›</button>
+  <div class="lightbox-counter" id="lightboxCounter"></div>
+</div>
 
 <!-- Password modal -->
 <div class="modal-backdrop" id="pwBackdrop">
@@ -705,15 +767,75 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       }
 
       if (images.length) {
-        html += '<div class="photos">' + images.map(f =>
-          '<a href="' + escapeAttr(f.value) + '" target="_blank" rel="noopener"><img src="' + escapeAttr(f.value) + '" alt="' + escapeAttr(ev.title) + '" loading="lazy"></a>'
+        html += '<div class="photos">' + images.map((f, idx) =>
+          '<img class="photo-thumb" data-idx="' + idx + '" src="' + escapeAttr(f.value) + '" alt="' + escapeAttr(ev.title) + '" loading="lazy">'
         ).join('') + '</div>';
       }
 
       div.innerHTML = html;
       eventListEl.appendChild(div);
+
+      if (images.length) {
+        const urls = images.map(f => f.value);
+        div.querySelectorAll('.photo-thumb').forEach(thumb => {
+          thumb.addEventListener('click', () => openLightbox(urls, parseInt(thumb.dataset.idx, 10)));
+        });
+      }
     });
   }
+
+  // ---------- Lightbox (view images full-size, navigate with arrows) ----------
+  const lightboxEl = document.getElementById('lightbox');
+  const lightboxImgEl = document.getElementById('lightboxImg');
+  const lightboxCounterEl = document.getElementById('lightboxCounter');
+  const lightboxPrevBtn = document.getElementById('lightboxPrev');
+  const lightboxNextBtn = document.getElementById('lightboxNext');
+  const lightboxCloseBtn = document.getElementById('lightboxClose');
+  let lightboxImages = [];
+  let lightboxIndex = 0;
+
+  function openLightbox(urls, index) {
+    lightboxImages = urls;
+    lightboxIndex = index;
+    showLightboxImage();
+    lightboxEl.classList.add('open');
+  }
+
+  function closeLightbox() {
+    lightboxEl.classList.remove('open');
+  }
+
+  function showLightboxImage() {
+    lightboxImgEl.src = lightboxImages[lightboxIndex];
+    const multi = lightboxImages.length > 1;
+    lightboxPrevBtn.style.display = multi ? 'flex' : 'none';
+    lightboxNextBtn.style.display = multi ? 'flex' : 'none';
+    lightboxCounterEl.style.display = multi ? 'block' : 'none';
+    lightboxCounterEl.textContent = (lightboxIndex + 1) + ' / ' + lightboxImages.length;
+  }
+
+  function lightboxPrev() {
+    lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+    showLightboxImage();
+  }
+
+  function lightboxNext() {
+    lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
+    showLightboxImage();
+  }
+
+  lightboxCloseBtn.addEventListener('click', closeLightbox);
+  lightboxPrevBtn.addEventListener('click', lightboxPrev);
+  lightboxNextBtn.addEventListener('click', lightboxNext);
+  lightboxEl.addEventListener('click', (e) => {
+    if (e.target === lightboxEl) closeLightbox(); // click on the dark backdrop closes it
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!lightboxEl.classList.contains('open')) return;
+    if (e.key === 'Escape') closeLightbox();
+    else if (e.key === 'ArrowLeft') lightboxPrev();
+    else if (e.key === 'ArrowRight') lightboxNext();
+  });
 
   function isVisible(ev, now) {
     if (!ev.visibleFrom) return true;
