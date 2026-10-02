@@ -598,6 +598,7 @@
       Änderungen werden in der gemeinsamen Datenbank gespeichert und sind für alle Besucher der Seite sichtbar.
     </div>
     <div class="admin-note" id="syncStatus">Verbindung wird hergestellt…</div>
+    <div id="importPreparedWrap"></div>
     <div class="admin-daypicker" id="adminDaypicker"></div>
     <div id="adminEventList"></div>
     <label>Neues Event anlegen aus Vorlage</label>
@@ -630,7 +631,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
 (function() {
   const TRIP_START = "2026-10-08";
-  const TRIP_END = "2026-10-16";
+  const TRIP_END = "2026-10-17";
 
   // ---------- Date helpers ----------
   function dateRange(startStr, endStr) {
@@ -1031,6 +1032,79 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     });
     addEventTemplates.appendChild(b);
   });
+
+  // ---------- One-time import of the prepared itinerary content (8.–11. Okt) ----------
+  function mkEvt(templateType, title, timeVal, richtextVal, highlight) {
+    const fields = [];
+    if (timeVal) fields.push(mkField('time', timeVal));
+    if (richtextVal) fields.push(mkField('richtext', '<p>' + richtextVal + '</p>'));
+    return {
+      id: cryptoId(), templateType: templateType || 'frei', title: title,
+      highlight: !!highlight, visibleFrom: null, fields: fields,
+      _importBatch: 'oct2026-v1'
+    };
+  }
+
+  const SEED_EVENTS_OCT2026 = {
+    "2026-10-08": [
+      mkEvt('aktivitaet', 'Pick-up at Airport', '', "Pick-up at Airport xy time"),
+      mkEvt('aktivitaet', 'Swiss Apéro', 'Abends', "Swiss Apéro with Cheese and Wine at the Koerner's Home")
+    ],
+    "2026-10-09": [
+      mkEvt('frei', 'Breakfast & Start of the Day', '', "Breakfast and get into the day"),
+      mkEvt('frei', 'Travel to Eguisheim', '', "Travel to Eguisheim near Colmar (Matthias, Annette, Neil, Hilary)"),
+      mkEvt('aktivitaet', 'Segway Tour in Eguisheim', '14:00', "Segway tour in Eguisheim and wine yards with Crémant tasting: Segway en Alsace, balades dans le vignoble à Eguisheim"),
+      mkEvt('frei', 'Optional Evening', '', "Optional: A) visit Colmar old town and dinner, or B) back to Basel for dinner at Fischerstube")
+    ],
+    "2026-10-10": [
+      mkEvt('frei', 'Day Trip to Neuchâtel', '', "Travel to Neuchâtel by train (Annette, Hilary, Neil)"),
+      mkEvt('aktivitaet', 'Train Basel SBB → Neuchâtel', '09:30', "~1h30, change in Biel/Bienne. Saver Day Passes via SBB app"),
+      mkEvt('aktivitaet', "Fun'ambule funicular & Saturday market", '11:00', "Fun'ambule funicular down to town, Saturday market at Place des Halles. Market winds down around midday."),
+      mkEvt('aktivitaet', 'Old town, Collégiale & castle', '11:30', "Short, steep cobbled climb; terrace view over the lake"),
+      mkEvt('aktivitaet', 'Lunch: Brasserie Le Cardinal', '12:30', "Rue du Seyon 9, +41 32 725 12 86. Alternative: Brasserie du Cercle, Place Pury"),
+      mkEvt('aktivitaet', 'Chaumont funicular (via La Coudre)', '14:00', "Bus 107 to La Coudre, then the Chaumont funicular. ~10 min ride, every 30 min. Panorama over the three lakes and the Alps, viewing tower. Single CHF 4.40, CHF 2.30 with Halbtax."),
+      mkEvt('aktivitaet', "Alternative if cloudy: Musée d'art et d'histoire", '14:00', "Esplanade Léopold-Robert 1, +41 32 717 79 20. Home of the Jaquet-Droz automatons"),
+      mkEvt('aktivitaet', 'Lake promenade & Confiserie Schmid', '16:00', "Coffee and cake at Confiserie Schmid, Place Pury. Flat, benches along the way."),
+      mkEvt('aktivitaet', "Fun'ambule funicular up to the station", '17:15', ""),
+      mkEvt('aktivitaet', 'Train Neuchâtel → Basel via Biel', '17:30', "Arrival in Basel ~19:00"),
+      mkEvt('frei', 'Dinner in Basel', '', "Dinner in Basel tbd")
+    ],
+    "2026-10-11": [
+      mkEvt('frei', '🎂 Birthday!', '', "Happy Birthday!", true),
+      mkEvt('frei', 'Champagne Breakfast', '', "Champagne breakfast at the Koerner's place"),
+      mkEvt('aktivitaet', 'Birthday Lunch', '13:00', "Birthday lunch at Banks Banks Basel; Trois Rois, Basel"),
+      mkEvt('frei', 'Walk the Old City of Basel', '', "Walk the old city of Basel"),
+      mkEvt('frei', 'Relaxed Evening & Drinks', '', "Relaxed evening and drink in a bar (to be decided)")
+    ]
+  };
+
+  function importPreparedEvents() {
+    const BATCH_ID = 'oct2026-v1';
+    let addedAny = false;
+    Object.keys(SEED_EVENTS_OCT2026).forEach(date => {
+      if (!tripData[date]) tripData[date] = { events: [] };
+      const already = tripData[date].events.some(e => e._importBatch === BATCH_ID);
+      if (already) return;
+      tripData[date].events = tripData[date].events.concat(SEED_EVENTS_OCT2026[date]);
+      addedAny = true;
+    });
+    renderAdminDaypicker();
+    renderAdminEvents();
+    if (addedAny) {
+      alert('Ereignisse eingefügt. Bitte prüfen und dann oben auf "Speichern" klicken, damit sie für alle Besucher sichtbar werden.');
+    } else {
+      alert('Diese Ereignisse wurden bereits eingefügt.');
+    }
+  }
+
+  const importPreparedWrap = document.getElementById('importPreparedWrap');
+  const importBtn = document.createElement('button');
+  importBtn.type = 'button';
+  importBtn.className = 'btn-add-template';
+  importBtn.style.marginBottom = '4px';
+  importBtn.textContent = '📥 Vorbereitete Inhalte (8.–11. Okt) einfügen';
+  importBtn.addEventListener('click', importPreparedEvents);
+  importPreparedWrap.appendChild(importBtn);
 
   function openAdmin() {
     renderAdminDaypicker();
