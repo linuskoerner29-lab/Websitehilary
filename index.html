@@ -105,41 +105,50 @@
     padding: 0 16px 60px 16px;
   }
   .weather-panel {
-    width: 220px;
+    width: 300px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 18px;
     margin-top: 20px;
     padding-left: 16px;
   }
   .weather-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
+    border-radius: 12px;
+    padding: 16px 18px;
   }
   .weather-card h4 {
-    margin: 0 0 8px 0;
-    font-size: 0.88rem;
+    margin: 0 0 10px 0;
+    font-size: 1.1rem;
   }
+  .weather-section-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    font-weight: 700;
+    margin: 12px 0 4px 0;
+  }
+  .weather-section-label:first-child { margin-top: 0; }
   .weather-day-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.8rem;
-    padding: 3px 0;
+    font-size: 0.98rem;
+    padding: 5px 0;
   }
   .weather-day-row .wd {
     color: var(--muted);
-    width: 28px;
+    width: 52px;
   }
-  .weather-day-row .icon { font-size: 1rem; }
+  .weather-day-row .icon { font-size: 1.4rem; }
   .weather-day-row .temps { font-weight: 600; }
   .weather-day-row .temps .min {
     color: var(--muted);
     font-weight: 400;
-    margin-left: 3px;
+    margin-left: 4px;
   }
   @media (max-width: 800px) {
     .page-layout { flex-direction: column; }
@@ -150,7 +159,7 @@
       padding-left: 0;
       margin-top: 12px;
     }
-    .weather-card { flex: 1; min-width: 150px; }
+    .weather-card { flex: 1; min-width: 220px; }
     main { margin: 0 auto; }
   }
   .day-heading {
@@ -1238,21 +1247,39 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     const container = card.querySelector('.weather-days');
     try {
       const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat + '&longitude=' + loc.lon +
-        '&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7';
+        '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
+        '&hourly=temperature_2m,weather_code&timezone=auto&forecast_days=7';
       const res = await fetch(url);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
+
+      // Today, split into six 4-hour blocks
+      let todayHtml = '<div class="weather-section-label">Heute</div>';
+      for (let b = 0; b < 6; b++) {
+        const hourIdx = b * 4;
+        const code = data.hourly.weather_code[hourIdx];
+        const temp = Math.round(data.hourly.temperature_2m[hourIdx]);
+        const label = String(hourIdx).padStart(2,'0') + '–' + String(hourIdx + 4).padStart(2,'0');
+        todayHtml += '<div class="weather-day-row"><span class="wd">' + label + '</span>' +
+          '<span class="icon">' + weatherIcon(code) + '</span>' +
+          '<span class="temps">' + temp + '°</span></div>';
+      }
+
+      // The following days as daily min/max
+      let weekHtml = '<div class="weather-section-label">Diese Woche</div>';
       const days = data.daily.time;
-      container.innerHTML = days.map((dateStr, i) => {
-        const d = new Date(dateStr + 'T12:00:00');
+      for (let i = 1; i < days.length; i++) {
+        const d = new Date(days[i] + 'T12:00:00');
         const wd = d.toLocaleDateString('de-DE', { weekday: 'short' });
         const code = data.daily.weather_code[i];
         const max = Math.round(data.daily.temperature_2m_max[i]);
         const min = Math.round(data.daily.temperature_2m_min[i]);
-        return '<div class="weather-day-row"><span class="wd">' + wd + '</span>' +
+        weekHtml += '<div class="weather-day-row"><span class="wd">' + wd + '</span>' +
           '<span class="icon">' + weatherIcon(code) + '</span>' +
           '<span class="temps">' + max + '°<span class="min">/' + min + '°</span></span></div>';
-      }).join('');
+      }
+
+      container.innerHTML = todayHtml + weekHtml;
     } catch (err) {
       console.error('Wetter konnte nicht geladen werden:', err);
       container.innerHTML = '<div style="color:var(--muted); font-size:0.78rem;">Wetter nicht verfügbar</div>';
