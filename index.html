@@ -513,6 +513,36 @@
     margin-bottom: 6px;
   }
   .bg-image-wrap input { margin-bottom: 0; }
+  .location-wrap {
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fafafa;
+  }
+  .location-wrap label { display: block; margin-bottom: 8px; }
+  .location-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .location-presets button {
+    font-size: 0.76rem;
+    padding: 5px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--accent);
+    background: white;
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .location-presets button:hover { background: var(--accent-light); }
+  .location-fields {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .location-fields input { flex: 1; min-width: 90px; margin-bottom: 0; }
   .admin-daypicker {
     display: flex;
     gap: 4px;
@@ -698,17 +728,11 @@
 
 <div class="page-layout">
   <aside class="weather-panel" id="weatherPanel">
-    <div class="weather-card" id="weatherBasel">
-      <h4>📍 Basel</h4>
-      <div class="weather-summary">Lädt…</div>
-      <button class="weather-toggle" type="button">▼ Mehr anzeigen</button>
-      <div class="weather-details" style="display:none;"></div>
-    </div>
-    <div class="weather-card" id="weatherBozen">
-      <h4>📍 Bozen</h4>
-      <div class="weather-summary">Lädt…</div>
-      <button class="weather-toggle" type="button">▼ Mehr anzeigen</button>
-      <div class="weather-details" style="display:none;"></div>
+    <div class="weather-card" id="weatherCard">
+      <h4 id="weatherLocationName">📍 …</h4>
+      <div class="weather-summary" id="weatherSummary">Lädt…</div>
+      <button class="weather-toggle" type="button" id="weatherToggle">▼ Mehr anzeigen</button>
+      <div class="weather-details" id="weatherDetails" style="display:none;"></div>
     </div>
   </aside>
 
@@ -768,6 +792,15 @@
       <input type="text" id="bgImageInput" placeholder="https://... – leer lassen für keinen Hintergrund">
     </div>
     <div class="admin-daypicker" id="adminDaypicker"></div>
+    <div class="location-wrap">
+      <label>📍 Wetter-Standort für diesen Tag</label>
+      <div class="location-presets" id="locationPresets"></div>
+      <div class="location-fields">
+        <input type="text" id="locNameInput" placeholder="Ortsname, z. B. Basel">
+        <input type="text" id="locLatInput" placeholder="Breitengrad (lat)">
+        <input type="text" id="locLonInput" placeholder="Längengrad (lon)">
+      </div>
+    </div>
     <div id="adminEventList"></div>
     <label>Neues Event anlegen aus Vorlage</label>
     <div class="add-event-templates" id="addEventTemplates"></div>
@@ -1026,6 +1059,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         selectedDate = date;
         renderTabs();
         renderDay();
+        loadWeatherForDay(selectedDate);
       });
       tabsEl.appendChild(btn);
     });
@@ -1349,6 +1383,17 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     ]
   };
 
+  // Reasonable default weather-station per day, based on the itinerary. Only filled in
+  // where a day has no location assigned yet, so it never overwrites a manual choice.
+  const LOCATION_BY_DATE = {
+    "2026-10-08": { name: 'Basel', lat: 47.5596, lon: 7.5886 },
+    "2026-10-09": { name: 'Eguisheim', lat: 48.0453, lon: 7.3078 },
+    "2026-10-10": { name: 'Neuchâtel', lat: 46.9900, lon: 6.9293 },
+    "2026-10-11": { name: 'Basel', lat: 47.5596, lon: 7.5886 },
+    "2026-10-12": { name: 'Welsberg (Südtirol)', lat: 46.7339, lon: 12.1744 },
+    "2026-10-13": { name: 'Welsberg (Südtirol)', lat: 46.7339, lon: 12.1744 }
+  };
+
   function importPreparedEvents() {
     const BATCH_ID = 'oct2026-v1';
     let addedAny = false;
@@ -1359,7 +1404,12 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       tripData[date].events = tripData[date].events.concat(SEED_EVENTS_OCT2026[date]);
       addedAny = true;
     });
+    Object.keys(LOCATION_BY_DATE).forEach(date => {
+      if (!tripData[date]) tripData[date] = { events: [] };
+      if (!tripData[date].location) tripData[date].location = LOCATION_BY_DATE[date];
+    });
     renderAdminDaypicker();
+    renderLocationEditor();
     renderAdminEvents();
     if (addedAny) {
       alert('Ereignisse eingefügt. Bitte prüfen und dann oben auf "Speichern" klicken, damit sie für alle Besucher sichtbar werden.');
@@ -1380,6 +1430,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   function openAdmin() {
     bgImageInput.value = (tripData.siteSettings && tripData.siteSettings.backgroundImage) || '';
     renderAdminDaypicker();
+    renderLocationEditor();
     renderAdminEvents();
     adminBackdrop.classList.add('open');
   }
@@ -1391,6 +1442,53 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     applyBackgroundImage();
   });
 
+  // ---------- Admin: per-day weather location ----------
+  const locNameInput = document.getElementById('locNameInput');
+  const locLatInput = document.getElementById('locLatInput');
+  const locLonInput = document.getElementById('locLonInput');
+  const locationPresetsEl = document.getElementById('locationPresets');
+
+  LOCATION_PRESETS.forEach(preset => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = preset.name;
+    b.addEventListener('click', () => {
+      locNameInput.value = preset.name;
+      locLatInput.value = preset.lat;
+      locLonInput.value = preset.lon;
+      updateDayLocation();
+    });
+    locationPresetsEl.appendChild(b);
+  });
+
+  function renderLocationEditor() {
+    const loc = tripData[adminSelectedDate] && tripData[adminSelectedDate].location;
+    locNameInput.value = loc ? (loc.name || '') : '';
+    locLatInput.value = loc && loc.lat != null ? loc.lat : '';
+    locLonInput.value = loc && loc.lon != null ? loc.lon : '';
+  }
+
+  function updateDayLocation() {
+    if (!tripData[adminSelectedDate]) tripData[adminSelectedDate] = { events: [] };
+    const name = locNameInput.value.trim();
+    const lat = parseFloat(locLatInput.value);
+    const lon = parseFloat(locLonInput.value);
+    if (name || !isNaN(lat) || !isNaN(lon)) {
+      tripData[adminSelectedDate].location = {
+        name: name,
+        lat: isNaN(lat) ? null : lat,
+        lon: isNaN(lon) ? null : lon
+      };
+    } else {
+      delete tripData[adminSelectedDate].location;
+    }
+    // live-update the guest-facing weather card if it's currently showing this same day
+    if (adminSelectedDate === selectedDate) loadWeatherForDay(selectedDate);
+  }
+  locNameInput.addEventListener('input', updateDayLocation);
+  locLatInput.addEventListener('input', updateDayLocation);
+  locLonInput.addEventListener('input', updateDayLocation);
+
   function renderAdminDaypicker() {
     adminDaypicker.innerHTML = '';
     ALL_DATES.forEach(date => {
@@ -1401,6 +1499,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       b.addEventListener('click', () => {
         adminSelectedDate = date;
         renderAdminDaypicker();
+        renderLocationEditor();
         renderAdminEvents();
       });
       adminDaypicker.appendChild(b);
@@ -1763,11 +1862,29 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       });
   });
 
-  // ---------- Weather: 7-day forecast for Basel & Bozen, starting from today ----------
-  const WEATHER_LOCATIONS = [
-    { name: 'Basel', lat: 47.5596, lon: 7.5886, elId: 'weatherBasel' },
-    { name: 'Bozen', lat: 46.4983, lon: 11.3548, elId: 'weatherBozen' }
+  // ---------- Weather: shows the forecast for whichever location is assigned to the
+  // currently selected day tab (e.g. Basel on arrival day, Welsberg once you're there) ----------
+  const DEFAULT_LOCATION = { name: 'Basel', lat: 47.5596, lon: 7.5886 };
+  const LOCATION_PRESETS = [
+    { name: 'Basel', lat: 47.5596, lon: 7.5886 },
+    { name: 'Eguisheim', lat: 48.0453, lon: 7.3078 },
+    { name: 'Neuchâtel', lat: 46.9900, lon: 6.9293 },
+    { name: 'Reschen/Graun', lat: 46.8415, lon: 10.5106 },
+    { name: 'Welsberg (Südtirol)', lat: 46.7339, lon: 12.1744 },
+    { name: 'Bozen', lat: 46.4983, lon: 11.3548 }
   ];
+
+  function getDayLocation(date) {
+    const day = tripData[date];
+    if (day && day.location && day.location.lat != null && day.location.lon != null) return day.location;
+    return DEFAULT_LOCATION;
+  }
+
+  function addDaysToDateStr(dateStr, days) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
 
   function weatherIcon(code) {
     const map = {
@@ -1809,8 +1926,9 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   }
 
   // Builds an inline SVG temperature curve for the whole day. Temperature, weather icon
-  // and hour label are all shown every 3 hours. The part of the day that has already
-  // passed is shown grayed out.
+  // and hour label are all shown every 3 hours. If `currentHour` is given (the day being
+  // shown is today), the part of the day that has already passed is grayed out and a
+  // "now" marker is drawn; pass null for a future day, where nothing is past yet.
   function buildHourlyChart(hourly, currentHour) {
     const sampleHours = [];
     for (let h = 0; h < 24; h += 3) sampleHours.push(h);
@@ -1832,15 +1950,21 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     const xAt = hourVal => leftPad + (hourVal / 24) * (W - leftPad - rightPad);
     const yAt = t => chartTop + (chartBottom - chartTop) - ((t - minT) / range) * (chartBottom - chartTop);
 
-    const boundaryIdx = Math.max(0, points.map(p => p.hour).filter(h => h <= currentHour).length - 1);
-    const pastPts = points.slice(0, boundaryIdx + 1).map(p => [xAt(p.hour), yAt(p.temp)]);
-    const futurePts = points.slice(boundaryIdx).map(p => [xAt(p.hour), yAt(p.temp)]);
+    const hasNow = currentHour !== null && currentHour !== undefined;
+    const boundaryIdx = hasNow ? Math.max(0, points.map(p => p.hour).filter(h => h <= currentHour).length - 1) : -1;
+    const pastPts = hasNow ? points.slice(0, boundaryIdx + 1).map(p => [xAt(p.hour), yAt(p.temp)]) : [];
+    const futurePts = hasNow
+      ? points.slice(boundaryIdx).map(p => [xAt(p.hour), yAt(p.temp)])
+      : points.map(p => [xAt(p.hour), yAt(p.temp)]);
 
     let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
 
-    // "now" marker
-    const nowX = xAt(currentHour);
-    svg += '<line x1="' + nowX + '" y1="' + chartTop + '" x2="' + nowX + '" y2="' + chartBottom + '" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>';
+    let nowX = null;
+    if (hasNow) {
+      // "now" marker
+      nowX = xAt(currentHour);
+      svg += '<line x1="' + nowX + '" y1="' + chartTop + '" x2="' + nowX + '" y2="' + chartBottom + '" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>';
+    }
 
     const pastPath = catmullRomPath(pastPts);
     const futurePath = catmullRomPath(futurePts);
@@ -1848,7 +1972,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     if (futurePath) svg += '<path d="' + futurePath + '" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';
 
     points.forEach(p => {
-      const isPast = p.hour < currentHour;
+      const isPast = hasNow && p.hour < currentHour;
       const dotColor = isPast ? 'var(--muted)' : 'var(--accent)';
       const textColor = isPast ? 'var(--muted)' : 'var(--text)';
       const opacity = isPast ? 0.55 : 1;
@@ -1864,76 +1988,80 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     return { html: svg, nowX: nowX };
   }
 
-  async function loadWeather(loc) {
-    const card = document.getElementById(loc.elId);
-    const summaryEl = card.querySelector('.weather-summary');
-    const detailsEl = card.querySelector('.weather-details');
-    const toggleBtn = card.querySelector('.weather-toggle');
+  const weatherLocationNameEl = document.getElementById('weatherLocationName');
+  const weatherSummaryEl = document.getElementById('weatherSummary');
+  const weatherDetailsEl = document.getElementById('weatherDetails');
+  const weatherToggleBtn = document.getElementById('weatherToggle');
+  let weatherToggleBound = false; // the click listener only needs to be attached once
+
+  // Loads and displays the weather for whichever location is assigned to `date`
+  // (falling back to Basel if the admin hasn't set one for that day yet).
+  async function loadWeatherForDay(date) {
+    const loc = getDayLocation(date);
+    const isToday = date === todayStr();
+    const d = new Date(date + 'T12:00:00');
+    const dateLabel = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    weatherLocationNameEl.textContent = '📍 ' + loc.name + ' · ' + dateLabel;
+    weatherSummaryEl.innerHTML = 'Lädt…';
+    weatherDetailsEl.style.display = 'none';
+    weatherToggleBtn.textContent = '▼ Mehr anzeigen';
+    weatherToggleBtn.style.display = '';
 
     try {
+      const endDate = addDaysToDateStr(date, 1); // one extra day, to get an hourly value for "24 Uhr" too
       const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat + '&longitude=' + loc.lon +
         '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
-        '&hourly=temperature_2m,weather_code&current_weather=true&timezone=auto&forecast_days=7';
+        '&hourly=temperature_2m,weather_code&current_weather=true&timezone=auto' +
+        '&start_date=' + date + '&end_date=' + endDate;
       const res = await fetch(url);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
 
-      // Always visible: current conditions + tomorrow's outlook
-      const cw = data.current_weather;
-      const nowIcon = weatherIcon(cw.weathercode);
-      const nowTemp = Math.round(cw.temperature);
-      const tMax = Math.round(data.daily.temperature_2m_max[1]);
-      const tMin = Math.round(data.daily.temperature_2m_min[1]);
-      const tIcon = weatherIcon(data.daily.weather_code[1]);
-      summaryEl.innerHTML =
-        '<div class="weather-day-row"><span class="wd">Jetzt</span>' +
-          '<span class="icon">' + nowIcon + '</span>' +
-          '<span class="temps">' + nowTemp + '°</span></div>' +
-        '<div class="weather-day-row"><span class="wd">Morgen</span>' +
-          '<span class="icon">' + tIcon + '</span>' +
-          '<span class="temps">' + tMax + '°<span class="min">/' + tMin + '°</span></span></div>';
+      const dayIcon = weatherIcon(data.daily.weather_code[0]);
+      const dayMax = Math.round(data.daily.temperature_2m_max[0]);
+      const dayMin = Math.round(data.daily.temperature_2m_min[0]);
 
-      // Expandable: temperature curve for the rest of today + the rest of the week
-      const currentHour = parseInt(cw.time.slice(11, 13), 10);
-      const chart = buildHourlyChart(data.hourly, currentHour);
-      let detailsHtml = '<div class="weather-section-label">Heute im Verlauf</div>';
-      detailsHtml += '<div class="weather-chart-hint">← zur Seite wischen/scrollen →</div>';
-      detailsHtml += '<div class="weather-chart" data-nowx="' + chart.nowX + '">' + chart.html + '</div>';
-      detailsHtml += '<div class="weather-section-label">Diese Woche</div>';
-      const days = data.daily.time;
-      for (let i = 1; i < days.length; i++) {
-        const d = new Date(days[i] + 'T12:00:00');
-        const wd = d.toLocaleDateString('de-DE', { weekday: 'short' });
-        const code = data.daily.weather_code[i];
-        const max = Math.round(data.daily.temperature_2m_max[i]);
-        const min = Math.round(data.daily.temperature_2m_min[i]);
-        detailsHtml += '<div class="weather-day-row"><span class="wd">' + wd + '</span>' +
-          '<span class="icon">' + weatherIcon(code) + '</span>' +
-          '<span class="temps">' + max + '°<span class="min">/' + min + '°</span></span></div>';
+      let summaryHtml = '';
+      let currentHour = null;
+      if (isToday && data.current_weather) {
+        currentHour = parseInt(data.current_weather.time.slice(11, 13), 10);
+        summaryHtml += '<div class="weather-day-row"><span class="wd">Jetzt</span>' +
+          '<span class="icon">' + weatherIcon(data.current_weather.weathercode) + '</span>' +
+          '<span class="temps">' + Math.round(data.current_weather.temperature) + '°</span></div>';
       }
-      detailsEl.innerHTML = detailsHtml;
+      summaryHtml += '<div class="weather-day-row"><span class="wd">' + (isToday ? 'Heute' : 'Tagsüber') + '</span>' +
+        '<span class="icon">' + dayIcon + '</span>' +
+        '<span class="temps">' + dayMax + '°<span class="min">/' + dayMin + '°</span></span></div>';
+      weatherSummaryEl.innerHTML = summaryHtml;
 
-      toggleBtn.addEventListener('click', () => {
-        const isOpen = detailsEl.style.display !== 'none';
-        detailsEl.style.display = isOpen ? 'none' : 'block';
-        toggleBtn.textContent = isOpen ? '▼ Mehr anzeigen' : '▲ Weniger anzeigen';
-        if (!isOpen) {
-          // center the chart on the current hour (only has a visible effect where it scrolls, i.e. on narrow screens)
-          requestAnimationFrame(() => {
-            const chartContainer = detailsEl.querySelector('.weather-chart');
-            const nowX = parseFloat(chartContainer.dataset.nowx || '0');
-            chartContainer.scrollLeft = Math.max(0, nowX - chartContainer.clientWidth / 2);
-          });
-        }
-      });
+      const chart = buildHourlyChart(data.hourly, currentHour);
+      let detailsHtml = '<div class="weather-section-label">Tagesverlauf</div>';
+      detailsHtml += '<div class="weather-chart-hint">← zur Seite wischen/scrollen →</div>';
+      detailsHtml += '<div class="weather-chart" data-nowx="' + (chart.nowX != null ? chart.nowX : 0) + '">' + chart.html + '</div>';
+      weatherDetailsEl.innerHTML = detailsHtml;
+
+      if (!weatherToggleBound) {
+        weatherToggleBtn.addEventListener('click', () => {
+          const isOpen = weatherDetailsEl.style.display !== 'none';
+          weatherDetailsEl.style.display = isOpen ? 'none' : 'block';
+          weatherToggleBtn.textContent = isOpen ? '▼ Mehr anzeigen' : '▲ Weniger anzeigen';
+          if (!isOpen) {
+            // center the chart on the current hour (only has a visible effect where it scrolls, i.e. on narrow screens)
+            requestAnimationFrame(() => {
+              const chartContainer = weatherDetailsEl.querySelector('.weather-chart');
+              const nowX = parseFloat(chartContainer.dataset.nowx || '0');
+              chartContainer.scrollLeft = Math.max(0, nowX - chartContainer.clientWidth / 2);
+            });
+          }
+        });
+        weatherToggleBound = true;
+      }
     } catch (err) {
       console.error('Wetter konnte nicht geladen werden:', err);
-      summaryEl.innerHTML = '<div style="color:var(--muted); font-size:0.85rem;">Wetter nicht verfügbar</div>';
-      toggleBtn.style.display = 'none';
+      weatherSummaryEl.innerHTML = '<div style="color:var(--muted); font-size:0.85rem;">Wetter nicht verfügbar</div>';
+      weatherToggleBtn.style.display = 'none';
     }
   }
-
-  WEATHER_LOCATIONS.forEach(loadWeather);
 
   // ---------- Birthday celebration animation ----------
   const BIRTHDAY_DATE = "2026-10-11";
@@ -1974,6 +2102,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   // ---------- Init ----------
   renderTabs();
   renderDay();
+  loadWeatherForDay(selectedDate);
   maybeShowBirthdayAnimation();
 })();
 </script>
