@@ -266,6 +266,42 @@
     display: flex;
     gap: 8px;
   }
+  .event .expand-toggle {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  .event .expand-toggle:hover { background: var(--accent-light); }
+  .event .expandable-body {
+    margin-top: 8px;
+    font-size: 0.88rem;
+    color: #444;
+  }
+  .event .expandable-body table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    margin-top: 4px;
+  }
+  .event .expandable-body td {
+    padding: 5px 6px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .event .expandable-body td:first-child {
+    white-space: nowrap;
+    font-weight: 600;
+    color: var(--accent);
+  }
   .event .photos img {
     width: 80px;
     height: 80px;
@@ -639,7 +675,9 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     let d = new Date(startStr + "T00:00:00");
     const end = new Date(endStr + "T00:00:00");
     while (d <= end) {
-      dates.push(d.toISOString().slice(0, 10));
+      // Build the date string from local year/month/day (not toISOString, which converts
+      // to UTC and would shift the date back by one day in timezones ahead of UTC, e.g. CET/CEST).
+      dates.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2,'0') + "-" + String(d.getDate()).padStart(2,'0'));
       d.setDate(d.getDate() + 1);
     }
     return dates;
@@ -668,14 +706,17 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
   // ---------- Field types & templates ----------
   const FIELD_TYPE_INFO = {
-    time:     { label: 'Uhrzeit', icon: '⏰' },
-    image:    { label: 'Bild',    icon: '🖼️' },
-    link:     { label: 'Link',    icon: '🔗' },
-    richtext: { label: 'Text',    icon: '📝' }
+    time:       { label: 'Uhrzeit',     icon: '⏰' },
+    image:      { label: 'Bild',        icon: '🖼️' },
+    link:       { label: 'Link',        icon: '🔗' },
+    richtext:   { label: 'Text',        icon: '📝' },
+    expandable: { label: 'Ausklappbar', icon: '📂' }
   };
 
   function mkField(type, value) {
-    return { id: cryptoId(), type, value: value || '' };
+    const f = { id: cryptoId(), type, value: value || '' };
+    if (type === 'expandable') f.label = 'Details anzeigen';
+    return f;
   }
 
   const TEMPLATES = {
@@ -868,6 +909,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       const richtexts = fields.filter(f => f.type === 'richtext' && f.value);
       const links = fields.filter(f => f.type === 'link' && f.value);
       const images = fields.filter(f => f.type === 'image' && f.value);
+      const expandables = fields.filter(f => f.type === 'expandable' && f.value);
 
       let html =
         (ev.highlight ? '<span class="star">⭐</span>' : '') +
@@ -890,6 +932,12 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         ).join('') + '</div>';
       }
 
+      expandables.forEach(f => {
+        const label = f.label || 'Details anzeigen';
+        html += '<button type="button" class="expand-toggle" data-label="' + escapeAttr(label) + '">▼ ' + escapeHtml(label) + '</button>' +
+          '<div class="expandable-body" style="display:none;">' + f.value + '</div>';
+      });
+
       div.innerHTML = html;
       eventListEl.appendChild(div);
 
@@ -899,6 +947,15 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
           thumb.addEventListener('click', () => openLightbox(urls, parseInt(thumb.dataset.idx, 10)));
         });
       }
+
+      div.querySelectorAll('.expand-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const body = btn.nextElementSibling;
+          const isOpen = body.style.display !== 'none';
+          body.style.display = isOpen ? 'none' : 'block';
+          btn.textContent = (isOpen ? '▼ ' : '▲ ') + btn.dataset.label;
+        });
+      });
     });
   }
 
@@ -1075,6 +1132,39 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       mkEvt('aktivitaet', 'Birthday Lunch', '13:00', "Birthday lunch at Banks Banks Basel; Trois Rois, Basel"),
       mkEvt('frei', 'Walk the Old City of Basel', '', "Walk the old city of Basel"),
       mkEvt('frei', 'Relaxed Evening & Drinks', '', "Relaxed evening and drink in a bar (to be decided)")
+    ],
+    "2026-10-12": (() => {
+      const driveEvent = mkEvt('aktivitaet', 'Scenic Drive through the Swiss Mountains', '09:00',
+        "Leave Basel for a scenic drive through the Swiss mountains to the Pustertal. Picnic and scenic views on the way.");
+      const routeField = mkField('expandable');
+      routeField.label = 'Route im Detail anzeigen';
+      routeField.value =
+        '<table><tbody>' +
+          '<tr><td>09:00</td><td>Abfahrt Oberwil</td><td></td></tr>' +
+          '<tr><td></td><td>Oberwil → Zürich → Raststätte Heidiland</td><td>ca. 1h50, ca. 190 km</td></tr>' +
+          '<tr><td>10:50–11:20</td><td>Ladestopp 1: Raststätte Heidiland, auf ca. 90% laden, Kaffee</td><td>30 min</td></tr>' +
+          '<tr><td></td><td>Heidiland → Feldkirch → Arlbergtunnel → Landeck</td><td>ca. 1h35, ca. 130 km</td></tr>' +
+          '<tr><td></td><td>Landeck → Nauders → Reschen</td><td>ca. 45 min, ca. 50 km</td></tr>' +
+          '<tr><td>13:40–14:40</td><td>Lunch: Restaurant Seehotel Panorama Relax, Hauptstrasse 19, Reschen. Panoramaterrasse mit Blick auf See und Ortler</td><td>1h</td></tr>' +
+          '<tr><td></td><td>Reschen → Graun</td><td>ca. 5 min, ca. 5 km</td></tr>' +
+          '<tr><td>14:45–15:15</td><td>Spaziergang am Seeufer zum Kirchturm von Alt-Graun (flach)</td><td>30 min</td></tr>' +
+          '<tr><td></td><td>Graun → Mals → Vinschgau → Meran → Bozen</td><td>ca. 2h00, ca. 120 km</td></tr>' +
+          '<tr><td></td><td>Bozen → A22 → Brixen/Vahrn</td><td>ca. 30 min, ca. 40 km</td></tr>' +
+          '<tr><td>17:45–18:00</td><td>Ladestopp 2: Tesla Supercharger Vahrn, Via Forch 2 (für alle CCS-Autos, Tesla-App nötig)</td><td>15 min</td></tr>' +
+          '<tr><td></td><td>Vahrn → Pustertal → Welsberg</td><td>ca. 50 min, ca. 60 km</td></tr>' +
+          '<tr><td>ca. 18:50</td><td>Ankunft Hotel Christof, Welsberg</td><td></td></tr>' +
+        '</tbody></table>';
+      driveEvent.fields.push(routeField);
+
+      const hotelEvent = mkEvt('aktivitaet', 'Check-in Hotel Christof, Welsberg', '18:00',
+        "Hotel Christof – Vibe-Hotel in Südtirol, Dolomiten erleben");
+
+      return [driveEvent, hotelEvent];
+    })(),
+    "2026-10-13": [
+      mkEvt('frei', '🎉 Birthday Surprise!', '', "Birthday surprise!", true),
+      mkEvt('frei', 'Scenic Panorama Drive to Lutz Place', '', "Scenic panorama drive to Lutz Place"),
+      mkEvt('aktivitaet', 'Arrival at Lutz Place', '16:00', "")
     ]
   };
 
@@ -1102,7 +1192,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   importBtn.type = 'button';
   importBtn.className = 'btn-add-template';
   importBtn.style.marginBottom = '4px';
-  importBtn.textContent = '📥 Vorbereitete Inhalte (8.–11. Okt) einfügen';
+  importBtn.textContent = '📥 Vorbereitete Inhalte (8.–13. Okt) einfügen';
   importBtn.addEventListener('click', importPreparedEvents);
   importPreparedWrap.appendChild(importBtn);
 
@@ -1295,6 +1385,65 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
       row.appendChild(toolbar);
       row.appendChild(editable);
+    } else if (field.type === 'expandable') {
+      const labelInput = document.createElement('input');
+      labelInput.type = 'text';
+      labelInput.placeholder = 'Button-Text, z. B. "Route im Detail anzeigen"';
+      labelInput.value = field.label || '';
+      labelInput.style.marginBottom = '8px';
+      labelInput.addEventListener('input', e => field.label = e.target.value);
+      row.appendChild(labelInput);
+
+      const toolbar = document.createElement('div');
+      toolbar.className = 'rte-toolbar';
+      const editable = document.createElement('div');
+      editable.className = 'rte-box';
+      editable.contentEditable = 'true';
+      editable.innerHTML = field.value || '';
+      editable.addEventListener('input', () => field.value = editable.innerHTML);
+
+      const mkBtn = (cmd, label, title) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = label;
+        b.title = title;
+        b.addEventListener('mousedown', e => {
+          e.preventDefault();
+          editable.focus();
+          document.execCommand(cmd, false, null);
+          field.value = editable.innerHTML;
+        });
+        return b;
+      };
+      toolbar.appendChild(mkBtn('bold', 'B', 'Fett'));
+      toolbar.appendChild(mkBtn('italic', 'I', 'Kursiv'));
+      toolbar.appendChild(mkBtn('underline', 'U', 'Unterstrichen'));
+      toolbar.appendChild(mkBtn('strikeThrough', 'S', 'Durchgestrichen'));
+
+      const sizeSelect = document.createElement('select');
+      [['2','Klein'], ['3','Normal'], ['5','Groß'], ['7','Riesig']].forEach(([val, label]) => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = label;
+        sizeSelect.appendChild(opt);
+      });
+      sizeSelect.value = '3';
+      sizeSelect.addEventListener('mousedown', e => e.stopPropagation());
+      sizeSelect.addEventListener('change', () => {
+        editable.focus();
+        document.execCommand('fontSize', false, sizeSelect.value);
+        field.value = editable.innerHTML;
+      });
+      toolbar.appendChild(sizeSelect);
+
+      row.appendChild(toolbar);
+      row.appendChild(editable);
+      const hint = document.createElement('div');
+      hint.style.fontSize = '0.72rem';
+      hint.style.color = 'var(--muted)';
+      hint.style.marginTop = '4px';
+      hint.textContent = 'Tipp: Für Tabellen (z. B. Routenpläne) kann auch HTML eingefügt werden.';
+      row.appendChild(hint);
     }
 
     return row;
