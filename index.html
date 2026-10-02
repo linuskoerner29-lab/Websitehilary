@@ -2008,7 +2008,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     weatherToggleBtn.style.display = '';
 
     try {
-      const endDate = addDaysToDateStr(date, 1); // one extra day, to get an hourly value for "24 Uhr" too
+      const endDate = addDaysToDateStr(date, 4); // a few extra days, for the short outlook below the day curve
       const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat + '&longitude=' + loc.lon +
         '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
         '&hourly=temperature_2m,weather_code&current_weather=true&timezone=auto' +
@@ -2038,6 +2038,21 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       let detailsHtml = '<div class="weather-section-label">Tagesverlauf</div>';
       detailsHtml += '<div class="weather-chart-hint">← zur Seite wischen/scrollen →</div>';
       detailsHtml += '<div class="weather-chart" data-nowx="' + (chart.nowX != null ? chart.nowX : 0) + '">' + chart.html + '</div>';
+
+      // Short outlook for the next few days, at this same location
+      detailsHtml += '<div class="weather-section-label">Nächste Tage in ' + escapeHtml(loc.name) + '</div>';
+      const days = data.daily.time;
+      for (let i = 1; i < days.length; i++) {
+        const dd = new Date(days[i] + 'T12:00:00');
+        const wd = dd.toLocaleDateString('de-DE', { weekday: 'short' });
+        const code = data.daily.weather_code[i];
+        const max = Math.round(data.daily.temperature_2m_max[i]);
+        const min = Math.round(data.daily.temperature_2m_min[i]);
+        detailsHtml += '<div class="weather-day-row"><span class="wd">' + wd + '</span>' +
+          '<span class="icon">' + weatherIcon(code) + '</span>' +
+          '<span class="temps">' + max + '°<span class="min">/' + min + '°</span></span></div>';
+      }
+
       weatherDetailsEl.innerHTML = detailsHtml;
 
       if (!weatherToggleBound) {
