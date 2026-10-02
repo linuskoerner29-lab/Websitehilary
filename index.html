@@ -1799,10 +1799,10 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       const p1 = pts[i];
       const p2 = pts[i + 1];
       const p3 = pts[i + 2] || p2;
-      const c1x = p1[0] + (p2[0] - p0[0]) / 6;
-      const c1y = p1[1] + (p2[1] - p0[1]) / 6;
-      const c2x = p2[0] - (p3[0] - p1[0]) / 6;
-      const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      const c1x = p1[0] + (p2[0] - p0[0]) / 9;
+      const c1y = p1[1] + (p2[1] - p0[1]) / 9;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 9;
+      const c2y = p2[1] - (p3[1] - p1[1]) / 9;
       d += ' C ' + c1x + ' ' + c1y + ', ' + c2x + ' ' + c2y + ', ' + p2[0] + ' ' + p2[1];
     }
     return d;
@@ -1814,6 +1814,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   function buildHourlyChart(hourly, currentHour) {
     const sampleHours = [];
     for (let h = 0; h < 24; h += 3) sampleHours.push(h);
+    sampleHours.push(24); // closing data point at midnight/end of day
     const points = sampleHours.map(h => ({
       hour: h,
       temp: hourly.temperature_2m[h],
