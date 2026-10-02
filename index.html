@@ -150,6 +150,20 @@
     font-weight: 400;
     margin-left: 4px;
   }
+  .weather-toggle {
+    width: 100%;
+    margin-top: 8px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 7px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .weather-toggle:hover { background: var(--accent-light); }
+  .weather-details { margin-top: 6px; }
   @media (max-width: 800px) {
     .page-layout { flex-direction: column; }
     .weather-panel {
@@ -513,11 +527,15 @@
   <aside class="weather-panel" id="weatherPanel">
     <div class="weather-card" id="weatherBasel">
       <h4>📍 Basel</h4>
-      <div class="weather-days">Lädt…</div>
+      <div class="weather-summary">Lädt…</div>
+      <button class="weather-toggle" type="button">▼ Mehr anzeigen</button>
+      <div class="weather-details" style="display:none;"></div>
     </div>
     <div class="weather-card" id="weatherBozen">
       <h4>📍 Bozen</h4>
-      <div class="weather-days">Lädt…</div>
+      <div class="weather-summary">Lädt…</div>
+      <button class="weather-toggle" type="button">▼ Mehr anzeigen</button>
+      <div class="weather-details" style="display:none;"></div>
     </div>
   </aside>
 
@@ -1244,29 +1262,46 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
   async function loadWeather(loc) {
     const card = document.getElementById(loc.elId);
-    const container = card.querySelector('.weather-days');
+    const summaryEl = card.querySelector('.weather-summary');
+    const detailsEl = card.querySelector('.weather-details');
+    const toggleBtn = card.querySelector('.weather-toggle');
+
     try {
       const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat + '&longitude=' + loc.lon +
         '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
-        '&hourly=temperature_2m,weather_code&timezone=auto&forecast_days=7';
+        '&hourly=temperature_2m,weather_code&current_weather=true&timezone=auto&forecast_days=7';
       const res = await fetch(url);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
 
-      // Today, split into six 4-hour blocks
-      let todayHtml = '<div class="weather-section-label">Heute</div>';
-      for (let b = 0; b < 6; b++) {
-        const hourIdx = b * 4;
-        const code = data.hourly.weather_code[hourIdx];
-        const temp = Math.round(data.hourly.temperature_2m[hourIdx]);
-        const label = String(hourIdx).padStart(2,'0') + '–' + String(hourIdx + 4).padStart(2,'0');
-        todayHtml += '<div class="weather-day-row"><span class="wd">' + label + '</span>' +
+      // Always visible: current conditions + tomorrow's outlook
+      const cw = data.current_weather;
+      const nowIcon = weatherIcon(cw.weathercode);
+      const nowTemp = Math.round(cw.temperature);
+      const tMax = Math.round(data.daily.temperature_2m_max[1]);
+      const tMin = Math.round(data.daily.temperature_2m_min[1]);
+      const tIcon = weatherIcon(data.daily.weather_code[1]);
+      summaryEl.innerHTML =
+        '<div class="weather-day-row"><span class="wd">Jetzt</span>' +
+          '<span class="icon">' + nowIcon + '</span>' +
+          '<span class="temps">' + nowTemp + '°</span></div>' +
+        '<div class="weather-day-row"><span class="wd">Morgen</span>' +
+          '<span class="icon">' + tIcon + '</span>' +
+          '<span class="temps">' + tMax + '°<span class="min">/' + tMin + '°</span></span></div>';
+
+      // Expandable: remaining 4-hour blocks of today + the rest of the week
+      const currentHour = parseInt(cw.time.slice(11, 13), 10);
+      const blockStart = Math.floor(currentHour / 4) * 4;
+      let detailsHtml = '<div class="weather-section-label">Heute im Detail</div>';
+      for (let s = blockStart; s < 24; s += 4) {
+        const code = data.hourly.weather_code[s];
+        const temp = Math.round(data.hourly.temperature_2m[s]);
+        const label = String(s).padStart(2,'0') + '–' + String(s + 4).padStart(2,'0');
+        detailsHtml += '<div class="weather-day-row"><span class="wd">' + label + '</span>' +
           '<span class="icon">' + weatherIcon(code) + '</span>' +
           '<span class="temps">' + temp + '°</span></div>';
       }
-
-      // The following days as daily min/max
-      let weekHtml = '<div class="weather-section-label">Diese Woche</div>';
+      detailsHtml += '<div class="weather-section-label">Diese Woche</div>';
       const days = data.daily.time;
       for (let i = 1; i < days.length; i++) {
         const d = new Date(days[i] + 'T12:00:00');
@@ -1274,15 +1309,21 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         const code = data.daily.weather_code[i];
         const max = Math.round(data.daily.temperature_2m_max[i]);
         const min = Math.round(data.daily.temperature_2m_min[i]);
-        weekHtml += '<div class="weather-day-row"><span class="wd">' + wd + '</span>' +
+        detailsHtml += '<div class="weather-day-row"><span class="wd">' + wd + '</span>' +
           '<span class="icon">' + weatherIcon(code) + '</span>' +
           '<span class="temps">' + max + '°<span class="min">/' + min + '°</span></span></div>';
       }
+      detailsEl.innerHTML = detailsHtml;
 
-      container.innerHTML = todayHtml + weekHtml;
+      toggleBtn.addEventListener('click', () => {
+        const isOpen = detailsEl.style.display !== 'none';
+        detailsEl.style.display = isOpen ? 'none' : 'block';
+        toggleBtn.textContent = isOpen ? '▼ Mehr anzeigen' : '▲ Weniger anzeigen';
+      });
     } catch (err) {
       console.error('Wetter konnte nicht geladen werden:', err);
-      container.innerHTML = '<div style="color:var(--muted); font-size:0.78rem;">Wetter nicht verfügbar</div>';
+      summaryEl.innerHTML = '<div style="color:var(--muted); font-size:0.85rem;">Wetter nicht verfügbar</div>';
+      toggleBtn.style.display = 'none';
     }
   }
 
