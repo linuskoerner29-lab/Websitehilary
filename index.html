@@ -22,11 +22,18 @@
     margin: 0;
     font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     background-color: var(--bg);
+    color: var(--text);
+  }
+  /* A real fixed-position element instead of background-attachment:fixed, which many
+     mobile browsers (notably iOS Safari) don't support properly and scroll anyway. */
+  #fixedBg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-color: var(--bg);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    background-attachment: fixed; /* stays put and fills the screen while content scrolls over it */
-    color: var(--text);
   }
   header {
     background: #27474a;
@@ -854,6 +861,8 @@
 </head>
 <body>
 
+<div id="fixedBg" aria-hidden="true"></div>
+
 <header>
   <div class="header-top">
     <h1 id="tripTitle">Basel &amp; Dolomites 2026</h1>
@@ -1244,8 +1253,10 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   // so the image only actually shows through behind the weather/events area as content
   // scrolls over it.
   function applyBackgroundImage() {
+    const bgEl = document.getElementById('fixedBg');
+    if (!bgEl) return;
     const url = (tripData.siteSettings && tripData.siteSettings.backgroundImage) || '';
-    document.body.style.backgroundImage = url ? 'url("' + url.replace(/"/g, '') + '")' : 'none';
+    bgEl.style.backgroundImage = url ? 'url("' + url.replace(/"/g, '') + '")' : 'none';
   }
 
   // ---------- Rendering: Tabs ----------
