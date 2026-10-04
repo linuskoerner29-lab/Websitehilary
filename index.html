@@ -566,6 +566,17 @@
     background: rgba(255,255,255,0.6) !important;
   }
   .leaflet-control-attribution a { font-size: 8px !important; }
+  .map-point-tooltip {
+    background: white !important;
+    border: 1px solid var(--accent) !important;
+    color: var(--text) !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    padding: 2px 7px !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+  }
+  .map-point-tooltip::before { display: none !important; }
   .weather-card h4 { display: flex; align-items: center; justify-content: space-between; }
   .map-expand-btn {
     background: none;
@@ -1146,6 +1157,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     }
     applyBackgroundImage();
     renderDay();
+    renderDayMap(selectedDate);
     if (adminBackdrop.classList.contains('open')) {
       renderAdminEvents();
     }
@@ -2032,8 +2044,13 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
     points.forEach(p => {
       const marker = L.marker([p.lat, p.lon]);
+      marker.bindTooltip(escapeHtml(p.name || 'Ort'), {
+        permanent: true, direction: 'top', offset: [0, -8], className: 'map-point-tooltip'
+      });
+
       const imgs = (p.images || []).filter(Boolean);
-      let popupHtml = '<div class="map-popup"><h4>' + escapeHtml(p.name || 'Ort') + '</h4>';
+      const hasPopupContent = p.link || imgs.length;
+      let popupHtml = '<div class="map-popup">';
       if (p.link) {
         popupHtml += '<a href="' + escapeAttr(p.link) + '" target="_blank" rel="noopener">🔗 Link öffnen</a>';
       }
@@ -2043,7 +2060,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         ).join('') + '</div>';
       }
       popupHtml += '</div>';
-      marker.bindPopup(popupHtml);
+      if (hasPopupContent) marker.bindPopup(popupHtml);
       if (imgs.length) {
         marker.on('popupopen', () => {
           const popupEl = marker.getPopup().getElement();
@@ -2123,6 +2140,9 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
     points.forEach(p => {
       const marker = L.marker([p.lat, p.lon], { draggable: true });
+      marker.bindTooltip(escapeHtml(p.name || 'Ort'), {
+        permanent: true, direction: 'top', offset: [0, -8], className: 'map-point-tooltip'
+      });
       marker.on('dragend', () => {
         const ll = marker.getLatLng();
         p.lat = ll.lat;
