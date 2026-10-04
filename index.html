@@ -580,6 +580,7 @@
     box-shadow: none !important;
   }
   .map-point-tooltip::before { display: none !important; }
+  .event-point-icon { font-size: 20px; text-align: center; line-height: 22px; }
   .weather-card h4 { display: flex; align-items: center; justify-content: space-between; }
   .map-expand-btn {
     background: none;
@@ -639,6 +640,15 @@
   }
   .map-admin-wrap label { display: block; margin-bottom: 8px; }
   #adminMap { height: 220px; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+  .map-pick-banner {
+    background: var(--accent);
+    color: white;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
   .map-point {
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -935,6 +945,7 @@
     </div>
     <div class="map-admin-wrap">
       <label>🗺️ Karte für diesen Tag – anklicken, um einen Punkt hinzuzufügen</label>
+      <div id="mapPickBanner" class="map-pick-banner" style="display:none;"></div>
       <div id="adminMap"></div>
       <div id="mapPointsList"></div>
     </div>
@@ -996,6 +1007,36 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     return DEFAULT_LOCATION;
   }
 
+  // Map points that an event itself contributes: a "Kartenpunkt" field with a position
+  // set, using that event's own title/images/link so they never need to be re-entered.
+  function getEventDerivedMapPoints(date) {
+    const events = (tripData[date] && tripData[date].events) || [];
+    const derived = [];
+    events.forEach(ev => {
+      (ev.fields || []).forEach(f => {
+        if (f.type === 'mappoint' && f.lat != null && f.lon != null) {
+          const images = (ev.fields || []).filter(x => x.type === 'image' && x.value).map(x => x.value);
+          const linkField = (ev.fields || []).find(x => x.type === 'link' && x.value);
+          derived.push({
+            id: f.id,
+            name: ev.title || 'Ort',
+            lat: f.lat,
+            lon: f.lon,
+            link: linkField ? linkField.value : '',
+            images: images
+          });
+        }
+      });
+    });
+    return derived;
+  }
+
+  // All points to show on a day's map: manually-added ones plus event-linked ones.
+  function getDayMapPoints(date) {
+    const manual = (tripData[date] && tripData[date].mapPoints) || [];
+    return manual.concat(getEventDerivedMapPoints(date));
+  }
+
   // ---------- Date helpers ----------
   function dateRange(startStr, endStr) {
     const dates = [];
@@ -1044,6 +1085,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   function mkField(type, value) {
     const f = { id: cryptoId(), type, value: value || '' };
     if (type === 'expandable') f.label = 'Details anzeigen';
+    if (type === 'mappoint') { f.lat = null; f.lon = null; }
     return f;
   }
 
@@ -1259,7 +1301,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       const links = fields.filter(f => f.type === 'link' && f.value);
       const images = fields.filter(f => f.type === 'image' && f.value);
       const expandables = fields.filter(f => f.type === 'expandable' && f.value);
-      const mapPointFields = fields.filter(f => f.type === 'mappoint' && f.value);
+      const mapPointFields = fields.filter(f => f.type === 'mappoint' && f.lat != null && f.lon != null);
 
       let html =
         (ev.highlight ? '<span class="star">⭐</span>' : '') +
@@ -1270,17 +1312,13 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         html += '<div class="rich-content">' + f.value + '</div>';
       });
 
-      const linkedMapPoints = mapPointFields
-        .map(f => (tripData[selectedDate].mapPoints || []).find(p => p.id === f.value))
-        .filter(Boolean);
-
-      if (links.length || linkedMapPoints.length) {
+      if (links.length || mapPointFields.length) {
         html += '<div class="links">';
         html += links.map(f =>
           '<a href="' + escapeAttr(f.value) + '" target="_blank" rel="noopener">🔗 Link öffnen</a>'
         ).join('');
-        html += linkedMapPoints.map(p =>
-          '<button type="button" class="map-link-btn" data-point-id="' + p.id + '">📍 ' + escapeHtml(p.name || 'Auf Karte zeigen') + '</button>'
+        html += mapPointFields.map(f =>
+          '<button type="button" class="map-link-btn" data-point-id="' + f.id + '">📍 ' + escapeHtml(ev.title || 'Auf Karte zeigen') + '</button>'
         ).join('');
         html += '</div>';
       }
@@ -1707,6 +1745,8 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       b.className = date === adminSelectedDate ? 'active' : '';
       b.addEventListener('click', () => {
         adminSelectedDate = date;
+        pendingMapPointPick = null;
+        mapPickBannerEl.style.display = 'none';
         renderAdminDaypicker();
         renderLocationEditor();
         renderAdminEvents();
@@ -1914,29 +1954,47 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       wrap.appendChild(toolbar);
       wrap.appendChild(editable);
     } else if (type === 'mappoint') {
-      const points = (tripData[adminSelectedDate] && tripData[adminSelectedDate].mapPoints) || [];
-      if (!points.length) {
-        const hint = document.createElement('div');
-        hint.style.fontSize = '0.78rem';
-        hint.style.color = 'var(--muted)';
-        hint.textContent = 'Noch keine Punkte für diesen Tag. Weiter unten auf der Karte einen Punkt hinzufügen, dann hier auswählen.';
-        wrap.appendChild(hint);
-      } else {
-        const select = document.createElement('select');
-        const emptyOpt = document.createElement('option');
-        emptyOpt.value = '';
-        emptyOpt.textContent = '– Kein Punkt ausgewählt –';
-        select.appendChild(emptyOpt);
-        points.forEach(p => {
-          const opt = document.createElement('option');
-          opt.value = p.id;
-          opt.textContent = p.name || ('Punkt ' + p.lat.toFixed(3) + ', ' + p.lon.toFixed(3));
-          select.appendChild(opt);
-        });
-        select.value = field.value || '';
-        select.addEventListener('change', e => field.value = e.target.value);
-        wrap.appendChild(select);
+      const hasPosition = field.lat != null && field.lon != null;
+
+      if (hasPosition) {
+        const info = document.createElement('div');
+        info.style.fontSize = '0.82rem';
+        info.style.marginBottom = '6px';
+        info.textContent = '📍 Position: ' + field.lat.toFixed(4) + ', ' + field.lon.toFixed(4);
+        wrap.appendChild(info);
       }
+
+      const btnRow = document.createElement('div');
+      btnRow.style.display = 'flex';
+      btnRow.style.gap = '8px';
+
+      const pickBtn = document.createElement('button');
+      pickBtn.type = 'button';
+      pickBtn.className = 'btn-add-field';
+      pickBtn.textContent = hasPosition ? '📍 Position ändern' : '📍 Position auf Karte wählen';
+      pickBtn.addEventListener('click', () => startPickingLocationFor(field));
+      btnRow.appendChild(pickBtn);
+
+      if (hasPosition) {
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'field-remove';
+        clearBtn.textContent = '✕ Position entfernen';
+        clearBtn.addEventListener('click', () => {
+          field.lat = null;
+          field.lon = null;
+          renderAdminEvents();
+        });
+        btnRow.appendChild(clearBtn);
+      }
+      wrap.appendChild(btnRow);
+
+      const hint = document.createElement('div');
+      hint.style.fontSize = '0.72rem';
+      hint.style.color = 'var(--muted)';
+      hint.style.marginTop = '6px';
+      hint.textContent = 'Name, Bilder und Link für den Kartenpunkt werden automatisch aus diesem Event übernommen (Titel, Bildfelder, erstes Linkfeld).';
+      wrap.appendChild(hint);
     }
 
     return wrap;
@@ -2093,7 +2151,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   // Shared between the small sidebar map and the fullscreen map, so they always match.
   function renderMarkersOnMap(mapInstance, markersLayer, date) {
     markersLayer.clearLayers();
-    const points = (tripData[date] && tripData[date].mapPoints) || [];
+    const points = getDayMapPoints(date);
     const loc = getDayLocation(date);
     const markersByPointId = {};
 
@@ -2194,22 +2252,38 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     adminMapInstance = L.map('adminMap');
     L.tileLayer(MAP_TILE_URL, Object.assign({ attribution: MAP_ATTRIBUTION }, MAP_TILE_OPTIONS)).addTo(adminMapInstance);
     adminMarkersLayer = L.layerGroup().addTo(adminMapInstance);
-    adminMapInstance.on('click', e => addMapPoint(e.latlng.lat, e.latlng.lng));
+    adminMapInstance.on('click', e => {
+      if (pendingMapPointPick) {
+        pendingMapPointPick.lat = e.latlng.lat;
+        pendingMapPointPick.lon = e.latlng.lng;
+        pendingMapPointPick = null;
+        mapPickBannerEl.style.display = 'none';
+        renderAdminMap();
+        renderAdminEvents();
+      } else {
+        addMapPoint(e.latlng.lat, e.latlng.lng);
+      }
+    });
   }
 
+  // Points that are manually added via the map (not tied to any event) can be dragged
+  // and edited here. Event-linked points are shown too, but read-only on this map; they
+  // get repositioned via their own event field instead (so the event stays the source of truth).
   function renderAdminMap() {
     ensureAdminMap();
     adminMarkersLayer.clearLayers();
-    const points = (tripData[adminSelectedDate] && tripData[adminSelectedDate].mapPoints) || [];
+    const manualPoints = (tripData[adminSelectedDate] && tripData[adminSelectedDate].mapPoints) || [];
+    const eventPoints = getEventDerivedMapPoints(adminSelectedDate);
+    const allPoints = manualPoints.concat(eventPoints);
     const loc = getDayLocation(adminSelectedDate);
 
-    if (points.length) {
-      adminMapInstance.fitBounds(L.latLngBounds(points.map(p => [p.lat, p.lon])), { padding: [30, 30], maxZoom: 15 });
+    if (allPoints.length) {
+      adminMapInstance.fitBounds(L.latLngBounds(allPoints.map(p => [p.lat, p.lon])), { padding: [30, 30], maxZoom: 15 });
     } else {
       adminMapInstance.setView([loc.lat, loc.lon], 12);
     }
 
-    points.forEach(p => {
+    manualPoints.forEach(p => {
       const marker = L.marker([p.lat, p.lon], { draggable: true });
       marker.bindTooltip(escapeHtml(p.name || 'Ort'), {
         permanent: true, direction: 'top', offset: [0, -8], className: 'map-point-tooltip'
@@ -2223,7 +2297,28 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       marker.addTo(adminMarkersLayer);
     });
 
+    eventPoints.forEach(p => {
+      const marker = L.marker([p.lat, p.lon], {
+        icon: L.divIcon({ className: 'event-point-icon', html: '📌', iconSize: [22, 22] })
+      });
+      marker.bindTooltip(escapeHtml(p.name) + ' (Event)', {
+        permanent: true, direction: 'top', offset: [0, -8], className: 'map-point-tooltip'
+      });
+      marker.addTo(adminMarkersLayer);
+    });
+
     setTimeout(() => adminMapInstance.invalidateSize(), 100);
+  }
+
+  // ---------- Picking a location on the admin map for an event's "Kartenpunkt" field ----------
+  let pendingMapPointPick = null;
+  const mapPickBannerEl = document.getElementById('mapPickBanner');
+
+  function startPickingLocationFor(field) {
+    pendingMapPointPick = field;
+    mapPickBannerEl.textContent = '👉 Jetzt auf die Karte unten klicken, um die Position zu setzen.';
+    mapPickBannerEl.style.display = 'block';
+    document.getElementById('adminMap').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function addMapPoint(lat, lon) {
