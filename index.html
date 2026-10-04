@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Urlaubsplan</title>
+<title>Trip Planner</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <style>
@@ -79,7 +79,7 @@
   .tab .dt { display: block; font-weight: 600; font-size: 0.95rem; }
   .tab.today { border-color: var(--today); }
   .tab.today::after {
-    content: "heute";
+    content: "today";
     position: absolute;
     top: -9px;
     left: 50%;
@@ -855,7 +855,7 @@
 
 <header>
   <div class="header-top">
-    <h1 id="tripTitle">Urlaub</h1>
+    <h1 id="tripTitle">Trip</h1>
     <button id="adminBtn">Admin</button>
   </div>
   <div class="tabs" id="tabs"></div>
@@ -865,12 +865,12 @@
   <aside class="weather-panel" id="weatherPanel">
     <div class="weather-card" id="weatherCard">
       <h4 id="weatherLocationName">📍 …</h4>
-      <div class="weather-summary" id="weatherSummary">Lädt…</div>
-      <button class="weather-toggle" type="button" id="weatherToggle">▼ Mehr anzeigen</button>
+      <div class="weather-summary" id="weatherSummary">Loading…</div>
+      <button class="weather-toggle" type="button" id="weatherToggle">▼ Show more</button>
       <div class="weather-details" id="weatherDetails" style="display:none;"></div>
     </div>
     <div class="weather-card" id="mapCard">
-      <h4>🗺️ Karte <button type="button" id="mapExpandBtn" class="map-expand-btn" title="Karte vergrößern">⤢</button></h4>
+      <h4>🗺️ Map <button type="button" id="mapExpandBtn" class="map-expand-btn" title="Enlarge map">⤢</button></h4>
       <div id="dayMap"></div>
     </div>
   </aside>
@@ -890,7 +890,7 @@
   <div class="birthday-message">
     <div class="birthday-emoji">🎉🎂🎉</div>
     <h2>Happy Birthday Hilary!</h2>
-    <button type="button" class="btn" id="birthdayCloseBtn">Los geht's!</button>
+    <button type="button" class="btn" id="birthdayCloseBtn">Let's go!</button>
   </div>
 </div>
 
@@ -912,14 +912,14 @@
 <!-- Password modal -->
 <div class="modal-backdrop" id="pwBackdrop">
   <div class="modal">
-    <h2>Admin-Zugang</h2>
-    <label for="pwInput">Passwort</label>
-    <input type="password" id="pwInput" placeholder="Passwort eingeben">
-    <div class="error-msg" id="pwError" style="display:none;">Falsches Passwort.</div>
-    <div class="checkbox-row"><input type="checkbox" id="staySignedInInput"> Angemeldet bleiben (nicht auf geteilten Geräten verwenden)</div>
+    <h2>Admin Access</h2>
+    <label for="pwInput">Password</label>
+    <input type="password" id="pwInput" placeholder="Enter password">
+    <div class="error-msg" id="pwError" style="display:none;">Incorrect password.</div>
+    <div class="checkbox-row"><input type="checkbox" id="staySignedInInput"> Stay signed in (don't use on shared devices)</div>
     <div class="modal-actions">
-      <button class="btn btn-secondary" id="pwCancel">Abbrechen</button>
-      <button class="btn btn-primary" id="pwSubmit">Bestätigen</button>
+      <button class="btn btn-secondary" id="pwCancel">Cancel</button>
+      <button class="btn btn-primary" id="pwSubmit">Confirm</button>
     </div>
   </div>
 </div>
@@ -927,39 +927,39 @@
 <!-- Admin modal -->
 <div class="modal-backdrop" id="adminBackdrop">
   <div class="modal" style="max-width:600px;">
-    <h2>Admin-Bereich</h2>
+    <h2>Admin Area</h2>
     <div class="admin-note">
-      Änderungen werden in der gemeinsamen Datenbank gespeichert und sind für alle Besucher der Seite sichtbar.
+      Changes are saved to the shared database and are visible to everyone visiting the site.
     </div>
-    <div class="admin-note" id="syncStatus">Verbindung wird hergestellt…</div>
+    <div class="admin-note" id="syncStatus">Connecting…</div>
     <div id="importPreparedWrap"></div>
     <div class="bg-image-wrap">
-      <label for="bgImageInput">🖼️ Hintergrundbild (nur hinter Wetter &amp; Events)</label>
-      <input type="text" id="bgImageInput" placeholder="https://... – leer lassen für keinen Hintergrund">
+      <label for="bgImageInput">🖼️ Background image (behind weather &amp; events only)</label>
+      <input type="text" id="bgImageInput" placeholder="https://... – leave empty for no background">
     </div>
     <div class="admin-daypicker" id="adminDaypicker"></div>
     <div class="location-wrap">
-      <label>📍 Wetter-Standort für diesen Tag</label>
+      <label>📍 Weather location for this day</label>
       <div class="location-presets" id="locationPresets"></div>
       <div class="location-fields">
-        <input type="text" id="locNameInput" placeholder="Ortsname, z. B. Basel">
-        <input type="text" id="locLatInput" placeholder="Breitengrad (lat)">
-        <input type="text" id="locLonInput" placeholder="Längengrad (lon)">
+        <input type="text" id="locNameInput" placeholder="Location name, e.g. Basel">
+        <input type="text" id="locLatInput" placeholder="Latitude (lat)">
+        <input type="text" id="locLonInput" placeholder="Longitude (lon)">
       </div>
     </div>
     <div class="map-admin-wrap">
-      <label>🗺️ Karte für diesen Tag – anklicken, um einen Punkt hinzuzufügen</label>
+      <label>🗺️ Map for this day – click to add a point</label>
       <div id="mapPickBanner" class="map-pick-banner" style="display:none;"></div>
       <div id="adminMap"></div>
       <div id="mapPointsList"></div>
     </div>
     <div id="adminEventList"></div>
-    <label>Neues Event anlegen aus Vorlage</label>
+    <label>Create new event from template</label>
     <div class="add-event-templates" id="addEventTemplates"></div>
     <div class="modal-actions">
-      <button class="btn btn-secondary" id="adminLogoutBtn" style="margin-right:auto;">Abmelden</button>
-      <button class="btn btn-secondary" id="adminClose">Schließen</button>
-      <button class="btn btn-primary" id="adminSave">Speichern</button>
+      <button class="btn btn-secondary" id="adminLogoutBtn" style="margin-right:auto;">Sign out</button>
+      <button class="btn btn-secondary" id="adminClose">Close</button>
+      <button class="btn btn-primary" id="adminSave">Save</button>
     </div>
   </div>
 </div>
@@ -995,7 +995,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     { name: 'Eguisheim', lat: 48.0453, lon: 7.3078 },
     { name: 'Neuchâtel', lat: 46.9900, lon: 6.9293 },
     { name: 'Reschen/Graun', lat: 46.8415, lon: 10.5106 },
-    { name: 'Welsberg (Südtirol)', lat: 46.7339, lon: 12.1744 },
+    { name: 'Welsberg (South Tyrol)', lat: 46.7339, lon: 12.1744 },
     { name: 'Bozen', lat: 46.4983, lon: 11.3548 }
   ];
 
@@ -1023,7 +1023,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
           const linkField = (ev.fields || []).find(x => x.type === 'link' && x.value);
           derived.push({
             id: f.id,
-            name: ev.title || 'Ort',
+            name: ev.title || 'Place',
             lat: f.lat,
             lon: f.lon,
             link: linkField ? linkField.value : '',
@@ -1057,16 +1057,16 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
   function formatDayLabel(dateStr) {
     const d = new Date(dateStr + "T00:00:00");
-    const weekday = d.toLocaleDateString('de-DE', { weekday: 'short' });
-    const dm = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+    const weekday = d.toLocaleDateString('en-GB', { weekday: 'short' });
+    const dm = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
     return { weekday, dm };
   }
 
   function formatDayHeading(dateStr) {
     const d = new Date(dateStr + "T00:00:00");
-    const weekday = d.toLocaleDateString('de-DE', { weekday: 'long' });
-    const full = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
-    return weekday + ", " + full + ".";
+    const weekday = d.toLocaleDateString('en-GB', { weekday: 'long' });
+    const full = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+    return weekday + ", " + full;
   }
 
   function todayStr() {
@@ -1078,24 +1078,24 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
   // ---------- Field types & templates ----------
   const FIELD_TYPE_INFO = {
-    time:       { label: 'Uhrzeit',      icon: '⏰' },
-    image:      { label: 'Bild',         icon: '🖼️' },
-    link:       { label: 'Link',         icon: '🔗' },
-    richtext:   { label: 'Text',         icon: '📝' },
-    expandable: { label: 'Ausklappbar',  icon: '📂' },
-    mappoint:   { label: 'Kartenpunkt',  icon: '📍' }
+    time:       { label: 'Time',       icon: '⏰' },
+    image:      { label: 'Image',      icon: '🖼️' },
+    link:       { label: 'Link',       icon: '🔗' },
+    richtext:   { label: 'Text',       icon: '📝' },
+    expandable: { label: 'Expandable', icon: '📂' },
+    mappoint:   { label: 'Map point',  icon: '📍' }
   };
 
   function mkField(type, value) {
     const f = { id: cryptoId(), type, value: value || '' };
-    if (type === 'expandable') f.label = 'Details anzeigen';
+    if (type === 'expandable') f.label = 'Show details';
     if (type === 'mappoint') { f.lat = null; f.lon = null; }
     return f;
   }
 
   const TEMPLATES = {
     aktivitaet: {
-      label: 'Aktivität', icon: '🏃',
+      label: 'Activity', icon: '🏃',
       build: () => [ mkField('time'), mkField('richtext'), mkField('link'), mkField('image'), mkField('image') ]
     },
     viewpoint: {
@@ -1103,7 +1103,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       build: () => [ mkField('image'), mkField('image') ]
     },
     frei: {
-      label: 'Frei', icon: '✏️',
+      label: 'Free', icon: '✏️',
       build: () => [ mkField('richtext') ]
     }
   };
@@ -1141,41 +1141,41 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     });
     // A few example entries to show how it works
     data[ALL_DATES[0]].events.push({
-      id: cryptoId(), templateType: 'aktivitaet', title: 'Ankunft & Check-in',
+      id: cryptoId(), templateType: 'aktivitaet', title: 'Arrival & Check-in',
       highlight: false, visibleFrom: null,
       fields: [
         mkField('time', '14:00'),
-        mkField('richtext', '<p>Ankunft am Zielort, Check-in in der Unterkunft, kurz ausruhen.</p>')
+        mkField('richtext', '<p>Arrival at the destination, check in at the accommodation, take a short rest.</p>')
       ]
     });
     data[ALL_DATES[0]].events.push({
-      id: cryptoId(), templateType: 'aktivitaet', title: 'Begrüßungsessen',
+      id: cryptoId(), templateType: 'aktivitaet', title: 'Welcome Dinner',
       highlight: true, visibleFrom: null,
       fields: [
         mkField('time', '19:00'),
-        mkField('richtext', '<p>Gemeinsames <strong>Abendessen</strong> in der Altstadt.</p>'),
-        mkField('link', 'https://maps.app.goo.gl/beispiel'),
+        mkField('richtext', '<p>A shared <strong>dinner</strong> in the old town.</p>'),
+        mkField('link', 'https://maps.app.goo.gl/example'),
         mkField('image'), mkField('image')
       ]
     });
     data[ALL_DATES[2]].events.push({
-      id: cryptoId(), templateType: 'aktivitaet', title: 'Geheime Überraschung',
+      id: cryptoId(), templateType: 'aktivitaet', title: 'Secret Surprise',
       highlight: true, visibleFrom: addDaysISO(ALL_DATES[2], -1),
       fields: [
         mkField('time', '10:00'),
-        mkField('richtext', '<p>Wird erst kurz vorher sichtbar – Beispiel für zeitgesteuerte Anzeige.</p>')
+        mkField('richtext', '<p>Only becomes visible shortly beforehand – an example of scheduled visibility.</p>')
       ]
     });
     data[ALL_DATES[4]].events.push({
-      id: cryptoId(), templateType: 'aktivitaet', title: 'Wanderung',
+      id: cryptoId(), templateType: 'aktivitaet', title: 'Hike',
       highlight: true, visibleFrom: null,
       fields: [
         mkField('time', '09:00'),
-        mkField('richtext', '<p>Ganztägige Wanderung mit Picknick.</p>')
+        mkField('richtext', '<p>All-day hike with a picnic.</p>')
       ]
     });
     data[ALL_DATES[4]].events.push({
-      id: cryptoId(), templateType: 'viewpoint', title: 'Aussichtspunkt',
+      id: cryptoId(), templateType: 'viewpoint', title: 'Viewpoint',
       highlight: false, visibleFrom: null,
       fields: [ mkField('image'), mkField('image') ]
     });
@@ -1221,7 +1221,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     }
     lastSyncedData = JSON.parse(JSON.stringify(tripData));
     if (syncStatusEl) {
-      syncStatusEl.textContent = 'Verbunden – Änderungen werden geteilt.';
+      syncStatusEl.textContent = 'Connected – changes are shared live.';
     }
     applyBackgroundImage();
     renderDay();
@@ -1231,7 +1231,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     }
   }, (err) => {
     console.error(err);
-    if (syncStatusEl) syncStatusEl.textContent = 'Verbindung fehlgeschlagen – bitte neu laden.';
+    if (syncStatusEl) syncStatusEl.textContent = 'Connection failed – please reload.';
   });
 
   function saveData() {
@@ -1276,7 +1276,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   function renderDay() {
     dayTitleEl.textContent = formatDayHeading(selectedDate);
     const idx = ALL_DATES.indexOf(selectedDate) + 1;
-    daySubEl.textContent = 'Tag ' + idx + ' von ' + ALL_DATES.length;
+    daySubEl.textContent = 'Day ' + idx + ' of ' + ALL_DATES.length;
 
     const now = new Date();
     const events = (tripData[selectedDate] && tripData[selectedDate].events) || [];
@@ -1285,7 +1285,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
     eventListEl.innerHTML = '';
     if (visibleEvents.length === 0) {
-      eventListEl.innerHTML = '<div class="empty-note">Für diesen Tag ist noch nichts geplant.</div>';
+      eventListEl.innerHTML = '<div class="empty-note">Nothing planned for this day yet.</div>';
       return;
     }
     visibleEvents.forEach(ev => {
@@ -1311,10 +1311,10 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       if (links.length || mapPointFields.length) {
         html += '<div class="links">';
         html += links.map(f =>
-          '<a href="' + escapeAttr(f.value) + '" target="_blank" rel="noopener">🔗 Link öffnen</a>'
+          '<a href="' + escapeAttr(f.value) + '" target="_blank" rel="noopener">🔗 Open link</a>'
         ).join('');
         html += mapPointFields.map(f =>
-          '<button type="button" class="map-link-btn" data-point-id="' + f.id + '">📍 ' + escapeHtml(ev.title || 'Auf Karte zeigen') + '</button>'
+          '<button type="button" class="map-link-btn" data-point-id="' + f.id + '">📍 ' + escapeHtml(ev.title || 'Show on map') + '</button>'
         ).join('');
         html += '</div>';
       }
@@ -1326,7 +1326,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       }
 
       expandables.forEach(f => {
-        const label = f.label || 'Details anzeigen';
+        const label = f.label || 'Show details';
         let bodyHtml;
         if (Array.isArray(f.children)) {
           const childTexts = f.children.filter(c => c.type === 'richtext' && c.value);
@@ -1336,7 +1336,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
           childTexts.forEach(c => { bodyHtml += '<div class="rich-content">' + c.value + '</div>'; });
           if (childLinks.length) {
             bodyHtml += '<div class="links">' + childLinks.map(c =>
-              '<a href="' + escapeAttr(c.value) + '" target="_blank" rel="noopener">🔗 Link öffnen</a>'
+              '<a href="' + escapeAttr(c.value) + '" target="_blank" rel="noopener">🔗 Open link</a>'
             ).join('') + '</div>';
           }
           if (childImages.length) {
@@ -1480,7 +1480,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     pwInput.value = '';
     pwError.style.display = 'none';
     pwSubmit.disabled = false;
-    pwSubmit.textContent = 'Bestätigen';
+    pwSubmit.textContent = 'Confirm';
     staySignedInInput.checked = staySignedIn;
     pwBackdrop.classList.add('open');
     pwInput.focus();
@@ -1492,7 +1492,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   function tryLogin() {
     pwError.style.display = 'none';
     pwSubmit.disabled = true;
-    pwSubmit.textContent = 'Prüfe…';
+    pwSubmit.textContent = 'Checking…';
     signInWithEmailAndPassword(auth, ADMIN_EMAIL, pwInput.value)
       .then(() => {
         isAdmin = true;
@@ -1503,12 +1503,12 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         openAdmin();
       })
       .catch(() => {
-        pwError.textContent = 'Falsches Passwort.';
+        pwError.textContent = 'Incorrect password.';
         pwError.style.display = 'block';
       })
       .finally(() => {
         pwSubmit.disabled = false;
-        pwSubmit.textContent = 'Bestätigen';
+        pwSubmit.textContent = 'Confirm';
       });
   }
 
@@ -1538,7 +1538,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     b.addEventListener('click', () => {
       if (!tripData[adminSelectedDate]) tripData[adminSelectedDate] = { events: [] };
       tripData[adminSelectedDate].events.push({
-        id: cryptoId(), templateType: key, title: 'Neues ' + tmpl.label,
+        id: cryptoId(), templateType: key, title: 'New ' + tmpl.label,
         highlight: false, visibleFrom: null, fields: tmpl.build()
       });
       renderAdminEvents();
@@ -1546,7 +1546,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     addEventTemplates.appendChild(b);
   });
 
-  // ---------- One-time import of the prepared itinerary content (8.–11. Okt) ----------
+  // ---------- One-time import of the prepared itinerary content (Oct 8–13) ----------
   function mkEvt(templateType, title, timeVal, richtextVal, highlight) {
     const fields = [];
     if (timeVal) fields.push(mkField('time', timeVal));
@@ -1561,7 +1561,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   const SEED_EVENTS_OCT2026 = {
     "2026-10-08": [
       mkEvt('aktivitaet', 'Pick-up at Airport', '', "Pick-up at Airport xy time"),
-      mkEvt('aktivitaet', 'Swiss Apéro', 'Abends', "Swiss Apéro with Cheese and Wine at the Koerner's Home")
+      mkEvt('aktivitaet', 'Swiss Apéro', 'Evening', "Swiss Apéro with Cheese and Wine at the Koerner's Home")
     ],
     "2026-10-09": [
       mkEvt('frei', 'Breakfast & Start of the Day', '', "Breakfast and get into the day"),
@@ -1593,27 +1593,27 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       const driveEvent = mkEvt('aktivitaet', 'Scenic Drive through the Swiss Mountains', '09:00',
         "Leave Basel for a scenic drive through the Swiss mountains to the Pustertal. Picnic and scenic views on the way.");
       const routeField = mkField('expandable');
-      routeField.label = 'Route im Detail anzeigen';
+      routeField.label = 'Show route details';
       routeField.value =
         '<table><tbody>' +
-          '<tr><td>09:00</td><td>Abfahrt Oberwil</td><td></td></tr>' +
-          '<tr><td></td><td>Oberwil → Zürich → Raststätte Heidiland</td><td>ca. 1h50, ca. 190 km</td></tr>' +
-          '<tr><td>10:50–11:20</td><td>Ladestopp 1: Raststätte Heidiland, auf ca. 90% laden, Kaffee</td><td>30 min</td></tr>' +
-          '<tr><td></td><td>Heidiland → Feldkirch → Arlbergtunnel → Landeck</td><td>ca. 1h35, ca. 130 km</td></tr>' +
-          '<tr><td></td><td>Landeck → Nauders → Reschen</td><td>ca. 45 min, ca. 50 km</td></tr>' +
-          '<tr><td>13:40–14:40</td><td>Lunch: Restaurant Seehotel Panorama Relax, Hauptstrasse 19, Reschen. Panoramaterrasse mit Blick auf See und Ortler</td><td>1h</td></tr>' +
-          '<tr><td></td><td>Reschen → Graun</td><td>ca. 5 min, ca. 5 km</td></tr>' +
-          '<tr><td>14:45–15:15</td><td>Spaziergang am Seeufer zum Kirchturm von Alt-Graun (flach)</td><td>30 min</td></tr>' +
-          '<tr><td></td><td>Graun → Mals → Vinschgau → Meran → Bozen</td><td>ca. 2h00, ca. 120 km</td></tr>' +
-          '<tr><td></td><td>Bozen → A22 → Brixen/Vahrn</td><td>ca. 30 min, ca. 40 km</td></tr>' +
-          '<tr><td>17:45–18:00</td><td>Ladestopp 2: Tesla Supercharger Vahrn, Via Forch 2 (für alle CCS-Autos, Tesla-App nötig)</td><td>15 min</td></tr>' +
-          '<tr><td></td><td>Vahrn → Pustertal → Welsberg</td><td>ca. 50 min, ca. 60 km</td></tr>' +
-          '<tr><td>ca. 18:50</td><td>Ankunft Hotel Christof, Welsberg</td><td></td></tr>' +
+          '<tr><td>09:00</td><td>Departure from Oberwil</td><td></td></tr>' +
+          '<tr><td></td><td>Oberwil → Zürich → Heidiland service area</td><td>approx. 1h50, approx. 190 km</td></tr>' +
+          '<tr><td>10:50–11:20</td><td>Charging stop 1: Heidiland service area, charge to approx. 90%, coffee</td><td>30 min</td></tr>' +
+          '<tr><td></td><td>Heidiland → Feldkirch → Arlberg tunnel → Landeck</td><td>approx. 1h35, approx. 130 km</td></tr>' +
+          '<tr><td></td><td>Landeck → Nauders → Reschen</td><td>approx. 45 min, approx. 50 km</td></tr>' +
+          '<tr><td>13:40–14:40</td><td>Lunch: Restaurant Seehotel Panorama Relax, Hauptstrasse 19, Reschen. Panorama terrace with a view of the lake and the Ortler</td><td>1h</td></tr>' +
+          '<tr><td></td><td>Reschen → Graun</td><td>approx. 5 min, approx. 5 km</td></tr>' +
+          '<tr><td>14:45–15:15</td><td>Walk along the lakeshore to the church tower of Alt-Graun (flat)</td><td>30 min</td></tr>' +
+          '<tr><td></td><td>Graun → Mals → Vinschgau → Meran → Bozen</td><td>approx. 2h00, approx. 120 km</td></tr>' +
+          '<tr><td></td><td>Bozen → A22 → Brixen/Vahrn</td><td>approx. 30 min, approx. 40 km</td></tr>' +
+          '<tr><td>17:45–18:00</td><td>Charging stop 2: Tesla Supercharger Vahrn, Via Forch 2 (works for all CCS cars, Tesla app required)</td><td>15 min</td></tr>' +
+          '<tr><td></td><td>Vahrn → Val Pusteria → Welsberg</td><td>approx. 50 min, approx. 60 km</td></tr>' +
+          '<tr><td>approx. 18:50</td><td>Arrival at Hotel Christof, Welsberg</td><td></td></tr>' +
         '</tbody></table>';
       driveEvent.fields.push(routeField);
 
       const hotelEvent = mkEvt('aktivitaet', 'Check-in Hotel Christof, Welsberg', '18:00',
-        "Hotel Christof – Vibe-Hotel in Südtirol, Dolomiten erleben");
+        "Hotel Christof – a vibe hotel in South Tyrol, right in the heart of the Dolomites");
 
       return [driveEvent, hotelEvent];
     })(),
@@ -1631,8 +1631,8 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     "2026-10-09": { name: 'Eguisheim', lat: 48.0453, lon: 7.3078 },
     "2026-10-10": { name: 'Neuchâtel', lat: 46.9900, lon: 6.9293 },
     "2026-10-11": { name: 'Basel', lat: 47.5596, lon: 7.5886 },
-    "2026-10-12": { name: 'Welsberg (Südtirol)', lat: 46.7339, lon: 12.1744 },
-    "2026-10-13": { name: 'Welsberg (Südtirol)', lat: 46.7339, lon: 12.1744 }
+    "2026-10-12": { name: 'Welsberg (South Tyrol)', lat: 46.7339, lon: 12.1744 },
+    "2026-10-13": { name: 'Welsberg (South Tyrol)', lat: 46.7339, lon: 12.1744 }
   };
 
   function importPreparedEvents() {
@@ -1653,9 +1653,9 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     renderLocationEditor();
     renderAdminEvents();
     if (addedAny) {
-      alert('Ereignisse eingefügt. Bitte prüfen und dann oben auf "Speichern" klicken, damit sie für alle Besucher sichtbar werden.');
+      alert('Events added. Please review them, then click "Save" above so they become visible to all visitors.');
     } else {
-      alert('Diese Ereignisse wurden bereits eingefügt.');
+      alert('These events have already been added.');
     }
   }
 
@@ -1664,37 +1664,37 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   importBtn.type = 'button';
   importBtn.className = 'btn-add-template';
   importBtn.style.marginBottom = '4px';
-  importBtn.textContent = '📥 Vorbereitete Inhalte (8.–13. Okt) einfügen';
+  importBtn.textContent = '📥 Add prepared content (Oct 8–13)';
   importBtn.addEventListener('click', importPreparedEvents);
   importPreparedWrap.appendChild(importBtn);
 
-  // ---------- Südtirol day-trip options (Seiser Alm / Autotour / Bozen), as alternatives for 13./14. Okt ----------
+  // ---------- South Tyrol day-trip options (Alpe di Siusi / Scenic Drive / Bozen), as alternatives for Oct 14/15 ----------
   const SUEDTIROL_LINK = 'https://www.suedtirol.info';
 
   function buildSuedtirolOptionEvents() {
     const ev1 = {
-      id: cryptoId(), templateType: 'aktivitaet', title: 'Seiser Alm mit Seilbahn von Seis',
+      id: cryptoId(), templateType: 'aktivitaet', title: 'Seiser Alm (Alpe di Siusi) with the cable car from Seis',
       highlight: false, visibleFrom: null, _importBatch: 'suedtirol-options-v1',
       fields: [
-        mkField('richtext', '<p>Ausflug auf die Seiser Alm, Europas größte Hochalm. Auffahrt mit der Seilbahn von Seis (Kastelruth) – oben warten weite Almwiesen und freie Sicht auf Schlern und Langkofel. Gut geeignet für eine Wanderung oder einfach zum Genießen der Aussicht.</p>'),
+        mkField('richtext', "<p>A trip up to the Seiser Alm, Europe's largest high-altitude alpine meadow. Ride up with the cable car from Seis (Kastelruth) – up top you'll find wide alpine meadows and open views of the Schlern and Langkofel peaks. Great for a hike, or just for enjoying the view.</p>"),
         mkField('link', SUEDTIROL_LINK),
         (() => { const f = mkField('mappoint'); f.lat = 46.5508; f.lon = 11.6187; return f; })()
       ]
     };
     const ev2 = {
-      id: cryptoId(), templateType: 'aktivitaet', title: 'Autotour: Seiser Alm – Schlern – Langkofel – (evtl. Sellajoch) – Fassatal',
+      id: cryptoId(), templateType: 'aktivitaet', title: 'Scenic Drive: Seiser Alm – Schlern – Langkofel – (maybe Sella Pass) – Val di Fassa',
       highlight: false, visibleFrom: null, _importBatch: 'suedtirol-options-v1',
       fields: [
-        mkField('richtext', '<p>Panoramafahrt rund um Schlern und Langkofel, vorbei an der Seiser Alm. Je nach Zeit und Lust weiter bis zum Sellajoch und hinunter ins Fassatal. Unterwegs gibt es mehrere Gelegenheiten, zusätzlich eine Seilbahn zu nehmen.</p>'),
+        mkField('richtext', '<p>A scenic drive around the Schlern and Langkofel peaks, past the Seiser Alm. Depending on time and mood, continue on to the Sella Pass and down into the Val di Fassa. Along the way there are several opportunities to also take a cable car.</p>'),
         mkField('link', SUEDTIROL_LINK),
         (() => { const f = mkField('mappoint'); f.lat = 46.5267; f.lon = 11.7520; return f; })()
       ]
     };
     const ev3 = {
-      id: cryptoId(), templateType: 'aktivitaet', title: 'Bozen: Stadtbesichtigung & Seilbahn nach Oberbozen',
+      id: cryptoId(), templateType: 'aktivitaet', title: 'Bozen: City Walk & Cable Car to Oberbozen',
       highlight: false, visibleFrom: null, _importBatch: 'suedtirol-options-v1',
       fields: [
-        mkField('richtext', '<p>Bummel durch die Bozner Altstadt, danach mit der Rittner Seilbahn hinauf nach Oberbozen auf den Ritten – mit schönem Blick über Bozen und die Dolomiten.</p>'),
+        mkField('richtext', '<p>A stroll through the old town of Bozen, then up with the Rittner cable car to Oberbozen on the Ritten plateau – with a lovely view over Bozen and the Dolomites.</p>'),
         mkField('link', SUEDTIROL_LINK),
         (() => { const f = mkField('mappoint'); f.lat = 46.4971; f.lon = 11.3553; return f; })()
       ]
@@ -1704,7 +1704,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
   function importSuedtirolOptions() {
     const BATCH_ID = 'suedtirol-options-v1';
-    const dates = ['2026-10-13', '2026-10-14'];
+    const dates = ['2026-10-14', '2026-10-15'];
     let addedAny = false;
     dates.forEach(date => {
       if (!tripData[date]) tripData[date] = { events: [] };
@@ -1719,9 +1719,9 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     renderAdminMap();
     renderMapPointsList();
     if (addedAny) {
-      alert('Ausflugsoptionen für den 13. und 14. Oktober eingefügt. Bitte prüfen und dann oben auf "Speichern" klicken.');
+      alert('Day-trip options for October 14 and 15 added. Please review them, then click "Save" above.');
     } else {
-      alert('Diese Ausflugsoptionen wurden bereits eingefügt.');
+      alert('These day-trip options have already been added.');
     }
   }
 
@@ -1729,7 +1729,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   suedtirolBtn.type = 'button';
   suedtirolBtn.className = 'btn-add-template';
   suedtirolBtn.style.marginBottom = '4px';
-  suedtirolBtn.textContent = '📥 Südtirol-Ausflugsoptionen (13./14. Okt) einfügen';
+  suedtirolBtn.textContent = '📥 Add South Tyrol day-trip options (Oct 14/15)';
   suedtirolBtn.addEventListener('click', importSuedtirolOptions);
   importPreparedWrap.appendChild(suedtirolBtn);
 
@@ -1824,7 +1824,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     if (events.length === 0) {
       const p = document.createElement('div');
       p.className = 'empty-note';
-      p.textContent = 'Noch keine Events für diesen Tag.';
+      p.textContent = 'No events for this day yet.';
       adminEventList.appendChild(p);
     }
     events.forEach(ev => {
@@ -1838,17 +1838,17 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     const tmplInfo = TEMPLATES[ev.templateType] || TEMPLATES.frei;
 
     const lockNoteHtml = () => ev.visibleFrom
-      ? '<div class="lock-note">🔒 Für Gäste erst sichtbar ab: ' + new Date(ev.visibleFrom).toLocaleString('de-DE') + '</div>'
-      : '<div class="lock-note">👁️ Für Gäste jederzeit sichtbar</div>';
+      ? '<div class="lock-note">🔒 Not visible to guests until: ' + new Date(ev.visibleFrom).toLocaleString('en-GB') + '</div>'
+      : '<div class="lock-note">👁️ Always visible to guests</div>';
 
     const header = document.createElement('div');
     header.innerHTML =
       '<div class="template-badge">' + tmplInfo.icon + ' ' + tmplInfo.label + '</div>' +
       lockNoteHtml() +
-      '<label>Titel</label>' +
+      '<label>Title</label>' +
       '<input type="text" class="f-title" value="' + escapeAttr(ev.title) + '">' +
-      '<div class="checkbox-row"><input type="checkbox" class="f-highlight" ' + (ev.highlight ? 'checked' : '') + '> Als Highlight markieren</div>' +
-      '<label>Sichtbar für Gäste ab (leer lassen = immer sichtbar)</label>' +
+      '<div class="checkbox-row"><input type="checkbox" class="f-highlight" ' + (ev.highlight ? 'checked' : '') + '> Mark as highlight</div>' +
+      '<label>Visible to guests from (leave empty = always visible)</label>' +
       '<input type="datetime-local" class="f-visible" value="' + (ev.visibleFrom ? ev.visibleFrom.slice(0,16) : '') + '">';
     wrap.appendChild(header);
 
@@ -1885,7 +1885,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
     const deleteWrap = document.createElement('div');
     deleteWrap.className = 'modal-actions';
-    deleteWrap.innerHTML = '<button class="btn btn-danger f-delete">Event löschen</button>';
+    deleteWrap.innerHTML = '<button class="btn btn-danger f-delete">Delete event</button>';
     deleteWrap.querySelector('.f-delete').addEventListener('click', () => {
       const list = tripData[adminSelectedDate].events;
       const i = list.findIndex(x => x.id === ev.id);
@@ -1923,7 +1923,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     } else if (type === 'image') {
       const input = document.createElement('input');
       input.type = 'text';
-      input.placeholder = 'Bild-URL';
+      input.placeholder = 'Image URL';
       input.value = field.value || '';
       input.addEventListener('input', e => field.value = e.target.value);
       wrap.appendChild(input);
@@ -1956,23 +1956,23 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         });
         return b;
       };
-      toolbar.appendChild(mkBtn('bold', 'B', 'Fett'));
-      toolbar.appendChild(mkBtn('italic', 'I', 'Kursiv'));
-      toolbar.appendChild(mkBtn('underline', 'U', 'Unterstrichen'));
-      toolbar.appendChild(mkBtn('strikeThrough', 'S', 'Durchgestrichen'));
+      toolbar.appendChild(mkBtn('bold', 'B', 'Bold'));
+      toolbar.appendChild(mkBtn('italic', 'I', 'Italic'));
+      toolbar.appendChild(mkBtn('underline', 'U', 'Underline'));
+      toolbar.appendChild(mkBtn('strikeThrough', 'S', 'Strikethrough'));
 
       const linkBtn = document.createElement('button');
       linkBtn.type = 'button';
       linkBtn.textContent = '🔗';
-      linkBtn.title = 'Markierten Text verlinken';
+      linkBtn.title = 'Link selected text';
       linkBtn.addEventListener('mousedown', e => {
         e.preventDefault();
         const sel = window.getSelection();
         if (sel.isCollapsed || !editable.contains(sel.anchorNode)) {
-          alert('Bitte zuerst den Text markieren, der verlinkt werden soll (z. B. den Hotelnamen).');
+          alert('Please select the text you want to link first (e.g. the hotel name).');
           return;
         }
-        const url = window.prompt('Link-Adresse (URL):', 'https://');
+        const url = window.prompt('Link address (URL):', 'https://');
         if (!url) return;
         editable.focus();
         document.execCommand('createLink', false, url);
@@ -1987,7 +1987,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       const unlinkBtn = document.createElement('button');
       unlinkBtn.type = 'button';
       unlinkBtn.textContent = '🔗✕';
-      unlinkBtn.title = 'Verlinkung entfernen (Cursor in den Link setzen)';
+      unlinkBtn.title = 'Remove link (place cursor in the link)';
       unlinkBtn.addEventListener('mousedown', e => {
         e.preventDefault();
         editable.focus();
@@ -1997,7 +1997,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       toolbar.appendChild(unlinkBtn);
 
       const sizeSelect = document.createElement('select');
-      [['2','Klein'], ['3','Normal'], ['5','Groß'], ['7','Riesig']].forEach(([val, label]) => {
+      [['2','Small'], ['3','Normal'], ['5','Large'], ['7','Huge']].forEach(([val, label]) => {
         const opt = document.createElement('option');
         opt.value = val;
         opt.textContent = label;
@@ -2032,7 +2032,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       const pickBtn = document.createElement('button');
       pickBtn.type = 'button';
       pickBtn.className = 'btn-add-field';
-      pickBtn.textContent = hasPosition ? '📍 Position ändern' : '📍 Position auf Karte wählen';
+      pickBtn.textContent = hasPosition ? '📍 Change position' : '📍 Pick position on map';
       pickBtn.addEventListener('click', () => startPickingLocationFor(field));
       btnRow.appendChild(pickBtn);
 
@@ -2040,7 +2040,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         const clearBtn = document.createElement('button');
         clearBtn.type = 'button';
         clearBtn.className = 'field-remove';
-        clearBtn.textContent = '✕ Position entfernen';
+        clearBtn.textContent = '✕ Remove position';
         clearBtn.addEventListener('click', () => {
           field.lat = null;
           field.lon = null;
@@ -2054,7 +2054,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       hint.style.fontSize = '0.72rem';
       hint.style.color = 'var(--muted)';
       hint.style.marginTop = '6px';
-      hint.textContent = 'Name, Bilder und Link für den Kartenpunkt werden automatisch aus diesem Event übernommen (Titel, Bildfelder, erstes Linkfeld).';
+      hint.textContent = 'Name, images and link for the map point are taken automatically from this event (title, image fields, first link field).';
       wrap.appendChild(hint);
     }
 
@@ -2078,7 +2078,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     upBtn.type = 'button';
     upBtn.className = 'field-move';
     upBtn.textContent = '▲';
-    upBtn.title = 'Nach oben verschieben';
+    upBtn.title = 'Move up';
     upBtn.disabled = idx <= 0;
     upBtn.addEventListener('click', () => { moveInArray(arr, idx, idx - 1); renderAdminEvents(); });
 
@@ -2086,7 +2086,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     downBtn.type = 'button';
     downBtn.className = 'field-move';
     downBtn.textContent = '▼';
-    downBtn.title = 'Nach unten verschieben';
+    downBtn.title = 'Move down';
     downBtn.disabled = idx === -1 || idx >= arr.length - 1;
     downBtn.addEventListener('click', () => { moveInArray(arr, idx, idx + 1); renderAdminEvents(); });
 
@@ -2094,7 +2094,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     removeBtn.type = 'button';
     removeBtn.className = 'field-remove';
     removeBtn.textContent = '✕';
-    removeBtn.title = 'Entfernen';
+    removeBtn.title = 'Remove';
     removeBtn.addEventListener('click', onRemove);
 
     controls.appendChild(upBtn);
@@ -2130,7 +2130,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     if (field.type === 'expandable') {
       const labelInput = document.createElement('input');
       labelInput.type = 'text';
-      labelInput.placeholder = 'Button-Text, z. B. "Route im Detail anzeigen"';
+      labelInput.placeholder = 'Button text, e.g. "Show route details"';
       labelInput.value = field.label || '';
       labelInput.style.marginBottom = '8px';
       labelInput.addEventListener('input', e => field.label = e.target.value);
@@ -2174,7 +2174,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         hint.style.fontSize = '0.72rem';
         hint.style.color = 'var(--muted)';
         hint.style.marginTop = '4px';
-        hint.textContent = 'Älteres Format (nur Text/HTML, z. B. für Tabellen). Neu hinzugefügte ausklappbare Felder unterstützen zusätzlich Bilder und Links in frei wählbarer Reihenfolge.';
+        hint.textContent = 'Older format (text/HTML only, e.g. for tables). Newly added expandable fields also support images and links in any order.';
         row.appendChild(hint);
       }
     } else {
@@ -2224,7 +2224,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
     points.forEach(p => {
       const marker = L.marker([p.lat, p.lon]);
-      marker.bindTooltip(escapeHtml(p.name || 'Ort'), {
+      marker.bindTooltip(escapeHtml(p.name || 'Place'), {
         permanent: true, direction: 'top', offset: [0, -8], className: 'map-point-tooltip'
       });
 
@@ -2232,7 +2232,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       const hasPopupContent = p.link || imgs.length;
       let popupHtml = '<div class="map-popup">';
       if (p.link) {
-        popupHtml += '<a href="' + escapeAttr(p.link) + '" target="_blank" rel="noopener">🔗 Link öffnen</a>';
+        popupHtml += '<a href="' + escapeAttr(p.link) + '" target="_blank" rel="noopener">🔗 Open link</a>';
       }
       if (imgs.length) {
         popupHtml += '<div class="photos">' + imgs.map((url, idx) =>
@@ -2346,7 +2346,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
     manualPoints.forEach(p => {
       const marker = L.marker([p.lat, p.lon], { draggable: true });
-      marker.bindTooltip(escapeHtml(p.name || 'Ort'), {
+      marker.bindTooltip(escapeHtml(p.name || 'Place'), {
         permanent: true, direction: 'top', offset: [0, -8], className: 'map-point-tooltip'
       });
       marker.on('dragend', () => {
@@ -2377,7 +2377,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
   function startPickingLocationFor(field) {
     pendingMapPointPick = field;
-    mapPickBannerEl.textContent = '👉 Jetzt auf die Karte unten klicken, um die Position zu setzen.';
+    mapPickBannerEl.textContent = '👉 Now click on the map below to set the position.';
     mapPickBannerEl.style.display = 'block';
     document.getElementById('adminMap').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
@@ -2386,11 +2386,11 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     if (!tripData[adminSelectedDate]) tripData[adminSelectedDate] = { events: [] };
     if (!tripData[adminSelectedDate].mapPoints) tripData[adminSelectedDate].mapPoints = [];
     tripData[adminSelectedDate].mapPoints.push({
-      id: cryptoId(), name: 'Neuer Punkt', lat: lat, lon: lon, link: '', images: ['', '', '']
+      id: cryptoId(), name: 'New point', lat: lat, lon: lon, link: '', images: ['', '', '']
     });
     renderAdminMap();
     renderMapPointsList();
-    renderAdminEvents(); // keeps the "Kartenpunkt"-field dropdowns in events up to date
+    renderAdminEvents(); // keeps the "map point" field dropdowns in events up to date
   }
 
   function renderMapPointsList() {
@@ -2400,7 +2400,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     if (!points.length) {
       const p = document.createElement('div');
       p.className = 'empty-note';
-      p.textContent = 'Noch keine Punkte für diesen Tag. Auf die Karte klicken, um einen hinzuzufügen.';
+      p.textContent = 'No points for this day yet. Click the map to add one.';
       listEl.appendChild(p);
       return;
     }
@@ -2418,7 +2418,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'field-remove';
-    removeBtn.textContent = '✕ entfernen';
+    removeBtn.textContent = '✕ remove';
     removeBtn.addEventListener('click', () => {
       const list = tripData[adminSelectedDate].mapPoints;
       const i = list.findIndex(x => x.id === point.id);
@@ -2433,7 +2433,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
-    nameInput.placeholder = 'Name des Punkts';
+    nameInput.placeholder = 'Point name';
     nameInput.value = point.name || '';
     nameInput.addEventListener('input', e => point.name = e.target.value);
     wrap.appendChild(nameInput);
@@ -2450,7 +2450,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     [0, 1, 2].forEach(i => {
       const imgInput = document.createElement('input');
       imgInput.type = 'text';
-      imgInput.placeholder = 'Bild ' + (i + 1) + ' URL';
+      imgInput.placeholder = 'Image ' + (i + 1) + ' URL';
       imgInput.value = (point.images && point.images[i]) || '';
       imgInput.addEventListener('input', e => {
         if (!point.images) point.images = ['', '', ''];
@@ -2476,7 +2476,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
   adminSave.addEventListener('click', () => {
     adminSave.disabled = true;
-    adminSave.textContent = 'Speichert…';
+    adminSave.textContent = 'Saving…';
     saveData()
       .then(() => {
         adminBackdrop.classList.remove('open');
@@ -2487,11 +2487,11 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       })
       .catch(err => {
         console.error(err);
-        alert('Speichern fehlgeschlagen. Bitte Internetverbindung prüfen und erneut versuchen.');
+        alert('Save failed. Please check your internet connection and try again.');
       })
       .finally(() => {
         adminSave.disabled = false;
-        adminSave.textContent = 'Speichern';
+        adminSave.textContent = 'Save';
       });
   });
 
@@ -2590,7 +2590,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       svg += '<circle cx="' + x + '" cy="' + y + '" r="3.5" fill="' + dotColor + '" opacity="' + opacity + '"/>';
       svg += '<text x="' + x + '" y="' + (y - 12) + '" font-size="13" font-weight="600" text-anchor="middle" fill="' + textColor + '" opacity="' + opacity + '">' + Math.round(p.temp) + '°</text>';
       svg += '<text x="' + x + '" y="30" font-size="20" text-anchor="middle" opacity="' + opacity + '">' + weatherIcon(p.code) + '</text>';
-      svg += '<text x="' + x + '" y="' + (H - 10) + '" font-size="12" text-anchor="middle" fill="var(--muted)" opacity="' + opacity + '">' + String(p.hour).padStart(2,'0') + ' Uhr</text>';
+      svg += '<text x="' + x + '" y="' + (H - 10) + '" font-size="12" text-anchor="middle" fill="var(--muted)" opacity="' + opacity + '">' + String(p.hour).padStart(2,'0') + ':00</text>';
     });
 
     svg += '</svg>';
@@ -2609,11 +2609,11 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     const loc = getDayLocation(date);
     const isToday = date === todayStr();
     const d = new Date(date + 'T12:00:00');
-    const dateLabel = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    const dateLabel = d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit' });
     weatherLocationNameEl.textContent = '📍 ' + loc.name + ' · ' + dateLabel;
-    weatherSummaryEl.innerHTML = 'Lädt…';
+    weatherSummaryEl.innerHTML = 'Loading…';
     weatherDetailsEl.style.display = 'none';
-    weatherToggleBtn.textContent = '▼ Mehr anzeigen';
+    weatherToggleBtn.textContent = '▼ Show more';
     weatherToggleBtn.style.display = '';
 
     try {
@@ -2634,26 +2634,26 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       let currentHour = null;
       if (isToday && data.current_weather) {
         currentHour = parseInt(data.current_weather.time.slice(11, 13), 10);
-        summaryHtml += '<div class="weather-day-row"><span class="wd">Jetzt</span>' +
+        summaryHtml += '<div class="weather-day-row"><span class="wd">Now</span>' +
           '<span class="icon">' + weatherIcon(data.current_weather.weathercode) + '</span>' +
           '<span class="temps">' + Math.round(data.current_weather.temperature) + '°</span></div>';
       }
-      summaryHtml += '<div class="weather-day-row"><span class="wd">' + (isToday ? 'Heute' : 'Tagsüber') + '</span>' +
+      summaryHtml += '<div class="weather-day-row"><span class="wd">' + (isToday ? 'Today' : 'Daytime') + '</span>' +
         '<span class="icon">' + dayIcon + '</span>' +
         '<span class="temps">' + dayMax + '°<span class="min">/' + dayMin + '°</span></span></div>';
       weatherSummaryEl.innerHTML = summaryHtml;
 
       const chart = buildHourlyChart(data.hourly, currentHour);
-      let detailsHtml = '<div class="weather-section-label">Tagesverlauf</div>';
-      detailsHtml += '<div class="weather-chart-hint">← zur Seite wischen/scrollen →</div>';
+      let detailsHtml = '<div class="weather-section-label">Hourly Forecast</div>';
+      detailsHtml += '<div class="weather-chart-hint">← swipe/scroll sideways →</div>';
       detailsHtml += '<div class="weather-chart" data-nowx="' + (chart.nowX != null ? chart.nowX : 0) + '">' + chart.html + '</div>';
 
       // Short outlook for the next few days, at this same location
-      detailsHtml += '<div class="weather-section-label">Nächste Tage in ' + escapeHtml(loc.name) + '</div>';
+      detailsHtml += '<div class="weather-section-label">Next Days in ' + escapeHtml(loc.name) + '</div>';
       const days = data.daily.time;
       for (let i = 1; i < days.length; i++) {
         const dd = new Date(days[i] + 'T12:00:00');
-        const wd = dd.toLocaleDateString('de-DE', { weekday: 'short' });
+        const wd = dd.toLocaleDateString('en-GB', { weekday: 'short' });
         const code = data.daily.weather_code[i];
         const max = Math.round(data.daily.temperature_2m_max[i]);
         const min = Math.round(data.daily.temperature_2m_min[i]);
@@ -2668,7 +2668,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         weatherToggleBtn.addEventListener('click', () => {
           const isOpen = weatherDetailsEl.style.display !== 'none';
           weatherDetailsEl.style.display = isOpen ? 'none' : 'block';
-          weatherToggleBtn.textContent = isOpen ? '▼ Mehr anzeigen' : '▲ Weniger anzeigen';
+          weatherToggleBtn.textContent = isOpen ? '▼ Show more' : '▲ Show less';
           if (!isOpen) {
             // center the chart on the current hour (only has a visible effect where it scrolls, i.e. on narrow screens)
             requestAnimationFrame(() => {
@@ -2681,8 +2681,8 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         weatherToggleBound = true;
       }
     } catch (err) {
-      console.error('Wetter konnte nicht geladen werden:', err);
-      weatherSummaryEl.innerHTML = '<div style="color:var(--muted); font-size:0.85rem;">Wetter nicht verfügbar</div>';
+      console.error('Could not load weather:', err);
+      weatherSummaryEl.innerHTML = '<div style="color:var(--muted); font-size:0.85rem;">Weather unavailable</div>';
       weatherToggleBtn.style.display = 'none';
     }
   }
