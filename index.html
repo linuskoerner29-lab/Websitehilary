@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Urlaubsplan</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <style>
   :root {
     --accent: #2a7f6e;
@@ -176,9 +178,21 @@
     color: var(--muted);
     margin: -2px 0 6px 0;
   }
-  /* Wide screens (laptop/desktop): show the whole day at once, bigger and without scrolling */
+  /* Wide screens (laptop/desktop): show the whole day at once, bigger and without scrolling,
+     and make better use of the available width overall. */
   @media (min-width: 801px) {
-    .weather-panel { width: 480px; }
+    .page-layout {
+      max-width: 1500px;
+      padding: 0 24px;
+    }
+    .weather-panel {
+      width: 480px;
+      padding-left: 0;
+    }
+    main {
+      max-width: none;
+      padding-left: 24px;
+    }
     .weather-chart { overflow-x: visible; }
     .weather-chart svg { width: 100%; height: auto; }
     .weather-chart-hint { display: none; }
@@ -322,7 +336,7 @@
     display: none;
     position: fixed;
     inset: 0;
-    z-index: 300;
+    z-index: 2000;
     align-items: center;
     justify-content: center;
     flex-direction: column;
@@ -543,6 +557,42 @@
     flex-wrap: wrap;
   }
   .location-fields input { flex: 1; min-width: 90px; margin-bottom: 0; }
+
+  #dayMap { height: 220px; border-radius: 8px; overflow: hidden; }
+  .map-admin-wrap {
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fafafa;
+  }
+  .map-admin-wrap label { display: block; margin-bottom: 8px; }
+  #adminMap { height: 220px; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+  .map-point {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: white;
+  }
+  .map-point .row2 { display: flex; gap: 8px; }
+  .map-point .row2 input { flex: 1; min-width: 0; }
+  .map-point-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .map-popup h4 { margin: 0 0 4px 0; font-size: 0.95rem; }
+  .map-popup a { color: var(--accent); font-size: 0.82rem; display: inline-block; margin-top: 4px; }
+  .map-popup .photos { margin-top: 6px; }
+  .map-popup .photos img {
+    width: 56px; height: 56px; object-fit: cover; border-radius: 6px;
+    margin-right: 4px; cursor: pointer; border: 1px solid var(--border);
+  }
   .admin-daypicker {
     display: flex;
     gap: 4px;
@@ -575,7 +625,7 @@
     gap: 8px;
   }
   .admin-event .row > div { flex: 1; }
-  .admin-event .checkbox-row {
+  .checkbox-row {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -734,6 +784,10 @@
       <button class="weather-toggle" type="button" id="weatherToggle">▼ Mehr anzeigen</button>
       <div class="weather-details" id="weatherDetails" style="display:none;"></div>
     </div>
+    <div class="weather-card" id="mapCard">
+      <h4>🗺️ Karte</h4>
+      <div id="dayMap"></div>
+    </div>
   </aside>
 
   <main>
@@ -750,7 +804,7 @@
   <div class="birthday-confetti" id="birthdayConfetti"></div>
   <div class="birthday-message">
     <div class="birthday-emoji">🎉🎂🎉</div>
-    <h2>Happy Birthday!</h2>
+    <h2>Happy Birthday Hilary!</h2>
     <button type="button" class="btn" id="birthdayCloseBtn">Los geht's!</button>
   </div>
 </div>
@@ -771,6 +825,7 @@
     <label for="pwInput">Passwort</label>
     <input type="password" id="pwInput" placeholder="Passwort eingeben">
     <div class="error-msg" id="pwError" style="display:none;">Falsches Passwort.</div>
+    <div class="checkbox-row"><input type="checkbox" id="staySignedInInput"> Angemeldet bleiben (nicht auf geteilten Geräten verwenden)</div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="pwCancel">Abbrechen</button>
       <button class="btn btn-primary" id="pwSubmit">Bestätigen</button>
@@ -801,10 +856,16 @@
         <input type="text" id="locLonInput" placeholder="Längengrad (lon)">
       </div>
     </div>
+    <div class="map-admin-wrap">
+      <label>🗺️ Karte für diesen Tag – anklicken, um einen Punkt hinzuzufügen</label>
+      <div id="adminMap"></div>
+      <div id="mapPointsList"></div>
+    </div>
     <div id="adminEventList"></div>
     <label>Neues Event anlegen aus Vorlage</label>
     <div class="add-event-templates" id="addEventTemplates"></div>
     <div class="modal-actions">
+      <button class="btn btn-secondary" id="adminLogoutBtn" style="margin-right:auto;">Abmelden</button>
       <button class="btn btn-secondary" id="adminClose">Schließen</button>
       <button class="btn btn-primary" id="adminSave">Speichern</button>
     </div>
@@ -814,7 +875,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAAPzLz1bAf1CXTIBl7myYheDGx5AnqjMM",
@@ -1084,6 +1145,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         renderTabs();
         renderDay();
         loadWeatherForDay(selectedDate);
+        renderDayMap(selectedDate);
       });
       tabsEl.appendChild(btn);
     });
@@ -1270,12 +1332,29 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   const pwError = document.getElementById('pwError');
   const pwSubmit = document.getElementById('pwSubmit');
   const pwCancel = document.getElementById('pwCancel');
+  const staySignedInInput = document.getElementById('staySignedInInput');
+  const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+
+  let staySignedIn = localStorage.getItem('staySignedIn') === '1';
+
+  // If a previous session chose "stay signed in", Firebase itself remembers the login
+  // across reloads; this just lets us skip straight to the admin panel without asking
+  // for the password again.
+  onAuthStateChanged(auth, user => {
+    isAdmin = !!user;
+  });
 
   adminBtn.addEventListener('click', () => {
+    if (isAdmin && auth.currentUser) {
+      adminSelectedDate = selectedDate;
+      openAdmin();
+      return;
+    }
     pwInput.value = '';
     pwError.style.display = 'none';
     pwSubmit.disabled = false;
     pwSubmit.textContent = 'Bestätigen';
+    staySignedInInput.checked = staySignedIn;
     pwBackdrop.classList.add('open');
     pwInput.focus();
   });
@@ -1290,6 +1369,8 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     signInWithEmailAndPassword(auth, ADMIN_EMAIL, pwInput.value)
       .then(() => {
         isAdmin = true;
+        staySignedIn = staySignedInInput.checked;
+        localStorage.setItem('staySignedIn', staySignedIn ? '1' : '0');
         pwBackdrop.classList.remove('open');
         adminSelectedDate = selectedDate;
         openAdmin();
@@ -1303,6 +1384,15 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         pwSubmit.textContent = 'Bestätigen';
       });
   }
+
+  function adminSignOutNow() {
+    signOut(auth).catch(() => {});
+    staySignedIn = false;
+    localStorage.setItem('staySignedIn', '0');
+    isAdmin = false;
+    adminBackdrop.classList.remove('open');
+  }
+  adminLogoutBtn.addEventListener('click', adminSignOutNow);
 
   // ---------- Admin panel ----------
   const adminBackdrop = document.getElementById('adminBackdrop');
@@ -1457,6 +1547,8 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     renderLocationEditor();
     renderAdminEvents();
     adminBackdrop.classList.add('open');
+    renderAdminMap();
+    renderMapPointsList();
   }
 
   const bgImageInput = document.getElementById('bgImageInput');
@@ -1525,6 +1617,8 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         renderAdminDaypicker();
         renderLocationEditor();
         renderAdminEvents();
+        renderAdminMap();
+        renderMapPointsList();
       });
       adminDaypicker.appendChild(b);
     });
@@ -1858,13 +1952,192 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     return (str || '').replace(/"/g, '&quot;');
   }
 
+  // ---------- Map: a Leaflet map per day, with admin-added points (name, link, images) ----------
+  // Using Wikimedia's OpenStreetMap tiles: a reliable, long-standing free tile source with
+  // no API key or account required, unlike the main osm.org server (which blocks embedded/
+  // app-style usage) or CARTO's basemaps (which now require a key).
+  const MAP_TILE_URL = 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png';
+  const MAP_TILE_OPTIONS = { maxZoom: 19 };
+  const MAP_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende';
+
+  // --- Guest-facing map ---
+  let guestMapInstance = null;
+  let guestMarkersLayer = null;
+
+  function ensureGuestMap() {
+    if (guestMapInstance) return;
+    guestMapInstance = L.map('dayMap');
+    L.tileLayer(MAP_TILE_URL, Object.assign({ attribution: MAP_ATTRIBUTION }, MAP_TILE_OPTIONS)).addTo(guestMapInstance);
+    guestMarkersLayer = L.layerGroup().addTo(guestMapInstance);
+  }
+
+  function renderDayMap(date) {
+    ensureGuestMap();
+    guestMarkersLayer.clearLayers();
+    const points = (tripData[date] && tripData[date].mapPoints) || [];
+    const loc = getDayLocation(date);
+
+    if (points.length) {
+      guestMapInstance.fitBounds(L.latLngBounds(points.map(p => [p.lat, p.lon])), { padding: [30, 30], maxZoom: 15 });
+    } else {
+      guestMapInstance.setView([loc.lat, loc.lon], 12);
+    }
+
+    points.forEach(p => {
+      const marker = L.marker([p.lat, p.lon]);
+      const imgs = (p.images || []).filter(Boolean);
+      let popupHtml = '<div class="map-popup"><h4>' + escapeHtml(p.name || 'Ort') + '</h4>';
+      if (p.link) {
+        popupHtml += '<a href="' + escapeAttr(p.link) + '" target="_blank" rel="noopener">🔗 Link öffnen</a>';
+      }
+      if (imgs.length) {
+        popupHtml += '<div class="photos">' + imgs.map((url, idx) =>
+          '<img data-idx="' + idx + '" src="' + escapeAttr(url) + '" alt="">'
+        ).join('') + '</div>';
+      }
+      popupHtml += '</div>';
+      marker.bindPopup(popupHtml);
+      if (imgs.length) {
+        marker.on('popupopen', () => {
+          const popupEl = marker.getPopup().getElement();
+          if (!popupEl) return;
+          popupEl.querySelectorAll('img').forEach(img => {
+            img.addEventListener('click', () => openLightbox(imgs, parseInt(img.dataset.idx, 10)));
+          });
+        });
+      }
+      marker.addTo(guestMarkersLayer);
+    });
+
+    setTimeout(() => guestMapInstance.invalidateSize(), 100);
+  }
+
+  // --- Admin map (click to add a point, drag to reposition) ---
+  let adminMapInstance = null;
+  let adminMarkersLayer = null;
+
+  function ensureAdminMap() {
+    if (adminMapInstance) return;
+    adminMapInstance = L.map('adminMap');
+    L.tileLayer(MAP_TILE_URL, Object.assign({ attribution: MAP_ATTRIBUTION }, MAP_TILE_OPTIONS)).addTo(adminMapInstance);
+    adminMarkersLayer = L.layerGroup().addTo(adminMapInstance);
+    adminMapInstance.on('click', e => addMapPoint(e.latlng.lat, e.latlng.lng));
+  }
+
+  function renderAdminMap() {
+    ensureAdminMap();
+    adminMarkersLayer.clearLayers();
+    const points = (tripData[adminSelectedDate] && tripData[adminSelectedDate].mapPoints) || [];
+    const loc = getDayLocation(adminSelectedDate);
+
+    if (points.length) {
+      adminMapInstance.fitBounds(L.latLngBounds(points.map(p => [p.lat, p.lon])), { padding: [30, 30], maxZoom: 15 });
+    } else {
+      adminMapInstance.setView([loc.lat, loc.lon], 12);
+    }
+
+    points.forEach(p => {
+      const marker = L.marker([p.lat, p.lon], { draggable: true });
+      marker.on('dragend', () => {
+        const ll = marker.getLatLng();
+        p.lat = ll.lat;
+        p.lon = ll.lng;
+        renderMapPointsList();
+      });
+      marker.addTo(adminMarkersLayer);
+    });
+
+    setTimeout(() => adminMapInstance.invalidateSize(), 100);
+  }
+
+  function addMapPoint(lat, lon) {
+    if (!tripData[adminSelectedDate]) tripData[adminSelectedDate] = { events: [] };
+    if (!tripData[adminSelectedDate].mapPoints) tripData[adminSelectedDate].mapPoints = [];
+    tripData[adminSelectedDate].mapPoints.push({
+      id: cryptoId(), name: 'Neuer Punkt', lat: lat, lon: lon, link: '', images: ['', '', '']
+    });
+    renderAdminMap();
+    renderMapPointsList();
+  }
+
+  function renderMapPointsList() {
+    const listEl = document.getElementById('mapPointsList');
+    listEl.innerHTML = '';
+    const points = (tripData[adminSelectedDate] && tripData[adminSelectedDate].mapPoints) || [];
+    if (!points.length) {
+      const p = document.createElement('div');
+      p.className = 'empty-note';
+      p.textContent = 'Noch keine Punkte für diesen Tag. Auf die Karte klicken, um einen hinzuzufügen.';
+      listEl.appendChild(p);
+      return;
+    }
+    points.forEach(point => listEl.appendChild(buildMapPointRow(point)));
+  }
+
+  function buildMapPointRow(point) {
+    const wrap = document.createElement('div');
+    wrap.className = 'map-point';
+
+    const header = document.createElement('div');
+    header.className = 'map-point-header';
+    const coordSpan = document.createElement('span');
+    coordSpan.textContent = '📍 ' + point.lat.toFixed(4) + ', ' + point.lon.toFixed(4);
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'field-remove';
+    removeBtn.textContent = '✕ entfernen';
+    removeBtn.addEventListener('click', () => {
+      const list = tripData[adminSelectedDate].mapPoints;
+      const i = list.findIndex(x => x.id === point.id);
+      if (i > -1) list.splice(i, 1);
+      renderAdminMap();
+      renderMapPointsList();
+    });
+    header.appendChild(coordSpan);
+    header.appendChild(removeBtn);
+    wrap.appendChild(header);
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.placeholder = 'Name des Punkts';
+    nameInput.value = point.name || '';
+    nameInput.addEventListener('input', e => point.name = e.target.value);
+    wrap.appendChild(nameInput);
+
+    const linkInput = document.createElement('input');
+    linkInput.type = 'text';
+    linkInput.placeholder = 'Link (optional)';
+    linkInput.value = point.link || '';
+    linkInput.addEventListener('input', e => point.link = e.target.value);
+    wrap.appendChild(linkInput);
+
+    const imgRow = document.createElement('div');
+    imgRow.className = 'row2';
+    [0, 1, 2].forEach(i => {
+      const imgInput = document.createElement('input');
+      imgInput.type = 'text';
+      imgInput.placeholder = 'Bild ' + (i + 1) + ' URL';
+      imgInput.value = (point.images && point.images[i]) || '';
+      imgInput.addEventListener('input', e => {
+        if (!point.images) point.images = ['', '', ''];
+        point.images[i] = e.target.value;
+      });
+      imgRow.appendChild(imgInput);
+    });
+    wrap.appendChild(imgRow);
+
+    return wrap;
+  }
+
   adminClose.addEventListener('click', () => {
     adminBackdrop.classList.remove('open');
     tripData = JSON.parse(JSON.stringify(lastSyncedData || defaultData())); // discard unsaved in-memory edits
     applyBackgroundImage();
     renderDay();
-    signOut(auth).catch(() => {});
-    isAdmin = false;
+    if (!staySignedIn) {
+      signOut(auth).catch(() => {});
+      isAdmin = false;
+    }
   });
 
   adminSave.addEventListener('click', () => {
@@ -1873,8 +2146,10 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     saveData()
       .then(() => {
         adminBackdrop.classList.remove('open');
-        signOut(auth).catch(() => {});
-        isAdmin = false;
+        if (!staySignedIn) {
+          signOut(auth).catch(() => {});
+          isAdmin = false;
+        }
       })
       .catch(err => {
         console.error(err);
@@ -2080,9 +2355,8 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
   // ---------- Birthday celebration animation ----------
   const BIRTHDAY_DATE = "2026-10-11";
-  // TEMP, FOR TESTING ONLY: shows the animation regardless of today's date.
-  // Set this to false once you've confirmed it works, so it only plays on the 11th.
-  const TEST_FORCE_BIRTHDAY_TODAY = true;
+  // Live now: the animation only plays when today is actually the 11th, not before or after.
+  const TEST_FORCE_BIRTHDAY_TODAY = false;
 
   function spawnConfetti(container, count) {
     const colors = ['#ff6b6b', '#f7b733', '#4ecdc4', '#a66bff', '#ffd93d', '#ff8fab'];
@@ -2118,6 +2392,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   renderTabs();
   renderDay();
   loadWeatherForDay(selectedDate);
+  renderDayMap(selectedDate);
   maybeShowBirthdayAnimation();
 })();
 </script>
