@@ -21,7 +21,11 @@
   body {
     margin: 0;
     font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    background: var(--bg);
+    background-color: var(--bg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed; /* stays put and fills the screen while content scrolls over it */
     color: var(--text);
   }
   header {
@@ -1234,21 +1238,13 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     return setDoc(tripDocRef, tripData);
   }
 
-  // Applies the admin-chosen background image to the area behind the weather panel
-  // and the events (the .page-layout wrapper), but not behind the header/day tabs,
-  // which live outside that wrapper.
+  // Applies the admin-chosen background image to the whole screen (always filling the
+  // viewport, fixed in place) while the header keeps its own solid background on top,
+  // so the image only actually shows through behind the weather/events area as content
+  // scrolls over it.
   function applyBackgroundImage() {
-    const pageLayoutEl = document.querySelector('.page-layout');
-    if (!pageLayoutEl) return;
     const url = (tripData.siteSettings && tripData.siteSettings.backgroundImage) || '';
-    if (url) {
-      pageLayoutEl.style.backgroundImage = 'url("' + url.replace(/"/g, '') + '")';
-      pageLayoutEl.style.backgroundSize = 'cover';
-      pageLayoutEl.style.backgroundPosition = 'center';
-      pageLayoutEl.style.backgroundRepeat = 'no-repeat';
-    } else {
-      pageLayoutEl.style.backgroundImage = 'none';
-    }
+    document.body.style.backgroundImage = url ? 'url("' + url.replace(/"/g, '') + '")' : 'none';
   }
 
   // ---------- Rendering: Tabs ----------
