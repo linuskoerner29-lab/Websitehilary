@@ -270,16 +270,19 @@
     gap: 8px;
     flex-wrap: wrap;
   }
-  .event .links a {
+  .event .links a, .event .links button {
     display: inline-block;
     font-size: 0.8rem;
     text-decoration: none;
     color: var(--accent);
+    background: none;
     border: 1px solid var(--accent);
     padding: 4px 10px;
     border-radius: 999px;
+    font-family: inherit;
+    cursor: pointer;
   }
-  .event .links a:hover { background: var(--accent-light); }
+  .event .links a:hover, .event .links button:hover { background: var(--accent-light); }
   .event .photos {
     margin-top: 10px;
     display: flex;
@@ -485,7 +488,7 @@
     overflow-y: auto;
   }
   .modal h2 { margin-top: 0; font-size: 1.2rem; }
-  .modal input[type="password"], .modal input[type="text"], .modal input[type="datetime-local"], .modal textarea {
+  .modal input[type="password"], .modal input[type="text"], .modal input[type="datetime-local"], .modal textarea, .modal select {
     width: 100%;
     padding: 8px 10px;
     border: 1px solid var(--border);
@@ -609,6 +612,24 @@
     border-radius: 10px;
     overflow: hidden;
   }
+  .map-overlay-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 2100;
+    background: #000;
+    color: white;
+    border: none;
+    font-size: 1.4rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .map-overlay-close:hover { background: #222; }
   .map-admin-wrap {
     margin-bottom: 16px;
     padding: 10px 12px;
@@ -861,7 +882,7 @@
 
 <!-- Fullscreen map overlay -->
 <div class="map-overlay-backdrop" id="mapOverlay">
-  <button class="lightbox-close" id="mapOverlayClose">✕</button>
+  <button class="map-overlay-close" id="mapOverlayClose">✕</button>
   <div id="fullscreenMap"></div>
 </div>
 
@@ -1012,11 +1033,12 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
   // ---------- Field types & templates ----------
   const FIELD_TYPE_INFO = {
-    time:       { label: 'Uhrzeit',     icon: '⏰' },
-    image:      { label: 'Bild',        icon: '🖼️' },
-    link:       { label: 'Link',        icon: '🔗' },
-    richtext:   { label: 'Text',        icon: '📝' },
-    expandable: { label: 'Ausklappbar', icon: '📂' }
+    time:       { label: 'Uhrzeit',      icon: '⏰' },
+    image:      { label: 'Bild',         icon: '🖼️' },
+    link:       { label: 'Link',         icon: '🔗' },
+    richtext:   { label: 'Text',         icon: '📝' },
+    expandable: { label: 'Ausklappbar',  icon: '📂' },
+    mappoint:   { label: 'Kartenpunkt',  icon: '📍' }
   };
 
   function mkField(type, value) {
@@ -1237,6 +1259,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       const links = fields.filter(f => f.type === 'link' && f.value);
       const images = fields.filter(f => f.type === 'image' && f.value);
       const expandables = fields.filter(f => f.type === 'expandable' && f.value);
+      const mapPointFields = fields.filter(f => f.type === 'mappoint' && f.value);
 
       let html =
         (ev.highlight ? '<span class="star">⭐</span>' : '') +
@@ -1247,10 +1270,19 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         html += '<div class="rich-content">' + f.value + '</div>';
       });
 
-      if (links.length) {
-        html += '<div class="links">' + links.map(f =>
+      const linkedMapPoints = mapPointFields
+        .map(f => (tripData[selectedDate].mapPoints || []).find(p => p.id === f.value))
+        .filter(Boolean);
+
+      if (links.length || linkedMapPoints.length) {
+        html += '<div class="links">';
+        html += links.map(f =>
           '<a href="' + escapeAttr(f.value) + '" target="_blank" rel="noopener">🔗 Link öffnen</a>'
-        ).join('') + '</div>';
+        ).join('');
+        html += linkedMapPoints.map(p =>
+          '<button type="button" class="map-link-btn" data-point-id="' + p.id + '">📍 ' + escapeHtml(p.name || 'Auf Karte zeigen') + '</button>'
+        ).join('');
+        html += '</div>';
       }
 
       if (images.length) {
@@ -1313,6 +1345,10 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
           body.style.display = isOpen ? 'none' : 'block';
           btn.textContent = (isOpen ? '▼ ' : '▲ ') + btn.dataset.label;
         });
+      });
+
+      div.querySelectorAll('.map-link-btn').forEach(btn => {
+        btn.addEventListener('click', () => openMapOverlay(btn.dataset.pointId));
       });
     });
   }
@@ -1877,6 +1913,30 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
 
       wrap.appendChild(toolbar);
       wrap.appendChild(editable);
+    } else if (type === 'mappoint') {
+      const points = (tripData[adminSelectedDate] && tripData[adminSelectedDate].mapPoints) || [];
+      if (!points.length) {
+        const hint = document.createElement('div');
+        hint.style.fontSize = '0.78rem';
+        hint.style.color = 'var(--muted)';
+        hint.textContent = 'Noch keine Punkte für diesen Tag. Weiter unten auf der Karte einen Punkt hinzufügen, dann hier auswählen.';
+        wrap.appendChild(hint);
+      } else {
+        const select = document.createElement('select');
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '– Kein Punkt ausgewählt –';
+        select.appendChild(emptyOpt);
+        points.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.name || ('Punkt ' + p.lat.toFixed(3) + ', ' + p.lon.toFixed(3));
+          select.appendChild(opt);
+        });
+        select.value = field.value || '';
+        select.addEventListener('change', e => field.value = e.target.value);
+        wrap.appendChild(select);
+      }
     }
 
     return wrap;
@@ -2035,6 +2095,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     markersLayer.clearLayers();
     const points = (tripData[date] && tripData[date].mapPoints) || [];
     const loc = getDayLocation(date);
+    const markersByPointId = {};
 
     if (points.length) {
       mapInstance.fitBounds(L.latLngBounds(points.map(p => [p.lat, p.lon])), { padding: [30, 30], maxZoom: 15 });
@@ -2071,7 +2132,10 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
         });
       }
       marker.addTo(markersLayer);
+      markersByPointId[p.id] = marker;
     });
+
+    return markersByPointId;
   }
 
   function renderDayMap(date) {
@@ -2094,11 +2158,18 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     fullscreenMarkersLayer = L.layerGroup().addTo(fullscreenMapInstance);
   }
 
-  function openMapOverlay() {
+  function openMapOverlay(focusPointId) {
     ensureFullscreenMap();
-    renderMarkersOnMap(fullscreenMapInstance, fullscreenMarkersLayer, selectedDate);
+    const markersByPointId = renderMarkersOnMap(fullscreenMapInstance, fullscreenMarkersLayer, selectedDate);
     mapOverlayEl.classList.add('open');
-    setTimeout(() => fullscreenMapInstance.invalidateSize(), 100);
+    setTimeout(() => {
+      fullscreenMapInstance.invalidateSize();
+      const marker = focusPointId && markersByPointId[focusPointId];
+      if (marker) {
+        fullscreenMapInstance.setView(marker.getLatLng(), 15);
+        marker.openPopup();
+      }
+    }, 100);
   }
 
   function closeMapOverlay() {
@@ -2163,6 +2234,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     });
     renderAdminMap();
     renderMapPointsList();
+    renderAdminEvents(); // keeps the "Kartenpunkt"-field dropdowns in events up to date
   }
 
   function renderMapPointsList() {
@@ -2197,6 +2269,7 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       if (i > -1) list.splice(i, 1);
       renderAdminMap();
       renderMapPointsList();
+      renderAdminEvents();
     });
     header.appendChild(coordSpan);
     header.appendChild(removeBtn);
