@@ -1668,6 +1668,71 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   importBtn.addEventListener('click', importPreparedEvents);
   importPreparedWrap.appendChild(importBtn);
 
+  // ---------- Südtirol day-trip options (Seiser Alm / Autotour / Bozen), as alternatives for 13./14. Okt ----------
+  const SUEDTIROL_LINK = 'https://www.suedtirol.info';
+
+  function buildSuedtirolOptionEvents() {
+    const ev1 = {
+      id: cryptoId(), templateType: 'aktivitaet', title: 'Seiser Alm mit Seilbahn von Seis',
+      highlight: false, visibleFrom: null, _importBatch: 'suedtirol-options-v1',
+      fields: [
+        mkField('richtext', '<p>Ausflug auf die Seiser Alm, Europas größte Hochalm. Auffahrt mit der Seilbahn von Seis (Kastelruth) – oben warten weite Almwiesen und freie Sicht auf Schlern und Langkofel. Gut geeignet für eine Wanderung oder einfach zum Genießen der Aussicht.</p>'),
+        mkField('link', SUEDTIROL_LINK),
+        (() => { const f = mkField('mappoint'); f.lat = 46.5508; f.lon = 11.6187; return f; })()
+      ]
+    };
+    const ev2 = {
+      id: cryptoId(), templateType: 'aktivitaet', title: 'Autotour: Seiser Alm – Schlern – Langkofel – (evtl. Sellajoch) – Fassatal',
+      highlight: false, visibleFrom: null, _importBatch: 'suedtirol-options-v1',
+      fields: [
+        mkField('richtext', '<p>Panoramafahrt rund um Schlern und Langkofel, vorbei an der Seiser Alm. Je nach Zeit und Lust weiter bis zum Sellajoch und hinunter ins Fassatal. Unterwegs gibt es mehrere Gelegenheiten, zusätzlich eine Seilbahn zu nehmen.</p>'),
+        mkField('link', SUEDTIROL_LINK),
+        (() => { const f = mkField('mappoint'); f.lat = 46.5267; f.lon = 11.7520; return f; })()
+      ]
+    };
+    const ev3 = {
+      id: cryptoId(), templateType: 'aktivitaet', title: 'Bozen: Stadtbesichtigung & Seilbahn nach Oberbozen',
+      highlight: false, visibleFrom: null, _importBatch: 'suedtirol-options-v1',
+      fields: [
+        mkField('richtext', '<p>Bummel durch die Bozner Altstadt, danach mit der Rittner Seilbahn hinauf nach Oberbozen auf den Ritten – mit schönem Blick über Bozen und die Dolomiten.</p>'),
+        mkField('link', SUEDTIROL_LINK),
+        (() => { const f = mkField('mappoint'); f.lat = 46.4971; f.lon = 11.3553; return f; })()
+      ]
+    };
+    return [ev1, ev2, ev3];
+  }
+
+  function importSuedtirolOptions() {
+    const BATCH_ID = 'suedtirol-options-v1';
+    const dates = ['2026-10-13', '2026-10-14'];
+    let addedAny = false;
+    dates.forEach(date => {
+      if (!tripData[date]) tripData[date] = { events: [] };
+      const already = tripData[date].events.some(e => e._importBatch === BATCH_ID);
+      if (already) return;
+      tripData[date].events = tripData[date].events.concat(buildSuedtirolOptionEvents());
+      addedAny = true;
+    });
+    renderAdminDaypicker();
+    renderLocationEditor();
+    renderAdminEvents();
+    renderAdminMap();
+    renderMapPointsList();
+    if (addedAny) {
+      alert('Ausflugsoptionen für den 13. und 14. Oktober eingefügt. Bitte prüfen und dann oben auf "Speichern" klicken.');
+    } else {
+      alert('Diese Ausflugsoptionen wurden bereits eingefügt.');
+    }
+  }
+
+  const suedtirolBtn = document.createElement('button');
+  suedtirolBtn.type = 'button';
+  suedtirolBtn.className = 'btn-add-template';
+  suedtirolBtn.style.marginBottom = '4px';
+  suedtirolBtn.textContent = '📥 Südtirol-Ausflugsoptionen (13./14. Okt) einfügen';
+  suedtirolBtn.addEventListener('click', importSuedtirolOptions);
+  importPreparedWrap.appendChild(suedtirolBtn);
+
   function openAdmin() {
     bgImageInput.value = (tripData.siteSettings && tripData.siteSettings.backgroundImage) || '';
     renderAdminDaypicker();
