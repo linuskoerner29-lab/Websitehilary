@@ -559,6 +559,38 @@
   .location-fields input { flex: 1; min-width: 90px; margin-bottom: 0; }
 
   #dayMap { height: 220px; border-radius: 8px; overflow: hidden; }
+  .weather-card h4 { display: flex; align-items: center; justify-content: space-between; }
+  .map-expand-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .map-expand-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .map-overlay-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(0,0,0,0.75);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .map-overlay-backdrop.open { display: flex; }
+  #fullscreenMap {
+    width: 100%;
+    height: 100%;
+    max-width: 1100px;
+    max-height: 90vh;
+    border-radius: 10px;
+    overflow: hidden;
+  }
   .map-admin-wrap {
     margin-bottom: 16px;
     padding: 10px 12px;
@@ -785,7 +817,7 @@
       <div class="weather-details" id="weatherDetails" style="display:none;"></div>
     </div>
     <div class="weather-card" id="mapCard">
-      <h4>🗺️ Karte</h4>
+      <h4>🗺️ Karte <button type="button" id="mapExpandBtn" class="map-expand-btn" title="Karte vergrößern">⤢</button></h4>
       <div id="dayMap"></div>
     </div>
   </aside>
@@ -807,6 +839,12 @@
     <h2>Happy Birthday Hilary!</h2>
     <button type="button" class="btn" id="birthdayCloseBtn">Los geht's!</button>
   </div>
+</div>
+
+<!-- Fullscreen map overlay -->
+<div class="map-overlay-backdrop" id="mapOverlay">
+  <button class="lightbox-close" id="mapOverlayClose">✕</button>
+  <div id="fullscreenMap"></div>
 </div>
 
 <!-- Lightbox for viewing images full-size -->
@@ -1953,12 +1991,13 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
   }
 
   // ---------- Map: a Leaflet map per day, with admin-added points (name, link, images) ----------
-  // Using Wikimedia's OpenStreetMap tiles: a reliable, long-standing free tile source with
-  // no API key or account required, unlike the main osm.org server (which blocks embedded/
-  // app-style usage) or CARTO's basemaps (which now require a key).
-  const MAP_TILE_URL = 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png';
+  // Using Esri's free "World Street Map" basemap tiles: a long-standing public service
+  // made specifically for free, keyless embedding in web maps like this one (unlike the
+  // osm.org server, CARTO's basemaps, or Wikimedia's maps, which all turned out to block
+  // or require a key for this kind of use).
+  const MAP_TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
   const MAP_TILE_OPTIONS = { maxZoom: 19 };
-  const MAP_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende';
+  const MAP_ATTRIBUTION = 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom';
 
   // --- Guest-facing map ---
   let guestMapInstance = null;
@@ -1971,16 +2010,17 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     guestMarkersLayer = L.layerGroup().addTo(guestMapInstance);
   }
 
-  function renderDayMap(date) {
-    ensureGuestMap();
-    guestMarkersLayer.clearLayers();
+  // Adds the current day's points (with popups: name, link, images) onto any map/layer pair.
+  // Shared between the small sidebar map and the fullscreen map, so they always match.
+  function renderMarkersOnMap(mapInstance, markersLayer, date) {
+    markersLayer.clearLayers();
     const points = (tripData[date] && tripData[date].mapPoints) || [];
     const loc = getDayLocation(date);
 
     if (points.length) {
-      guestMapInstance.fitBounds(L.latLngBounds(points.map(p => [p.lat, p.lon])), { padding: [30, 30], maxZoom: 15 });
+      mapInstance.fitBounds(L.latLngBounds(points.map(p => [p.lat, p.lon])), { padding: [30, 30], maxZoom: 15 });
     } else {
-      guestMapInstance.setView([loc.lat, loc.lon], 12);
+      mapInstance.setView([loc.lat, loc.lon], 12);
     }
 
     points.forEach(p => {
@@ -2006,11 +2046,49 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
           });
         });
       }
-      marker.addTo(guestMarkersLayer);
+      marker.addTo(markersLayer);
     });
+  }
 
+  function renderDayMap(date) {
+    ensureGuestMap();
+    renderMarkersOnMap(guestMapInstance, guestMarkersLayer, date);
     setTimeout(() => guestMapInstance.invalidateSize(), 100);
   }
+
+  // --- Fullscreen map (opened via the "expand" button, closes like the photo lightbox) ---
+  let fullscreenMapInstance = null;
+  let fullscreenMarkersLayer = null;
+  const mapOverlayEl = document.getElementById('mapOverlay');
+  const mapExpandBtn = document.getElementById('mapExpandBtn');
+  const mapOverlayCloseBtn = document.getElementById('mapOverlayClose');
+
+  function ensureFullscreenMap() {
+    if (fullscreenMapInstance) return;
+    fullscreenMapInstance = L.map('fullscreenMap');
+    L.tileLayer(MAP_TILE_URL, Object.assign({ attribution: MAP_ATTRIBUTION }, MAP_TILE_OPTIONS)).addTo(fullscreenMapInstance);
+    fullscreenMarkersLayer = L.layerGroup().addTo(fullscreenMapInstance);
+  }
+
+  function openMapOverlay() {
+    ensureFullscreenMap();
+    renderMarkersOnMap(fullscreenMapInstance, fullscreenMarkersLayer, selectedDate);
+    mapOverlayEl.classList.add('open');
+    setTimeout(() => fullscreenMapInstance.invalidateSize(), 100);
+  }
+
+  function closeMapOverlay() {
+    mapOverlayEl.classList.remove('open');
+  }
+
+  mapExpandBtn.addEventListener('click', openMapOverlay);
+  mapOverlayCloseBtn.addEventListener('click', closeMapOverlay);
+  mapOverlayEl.addEventListener('click', (e) => {
+    if (e.target === mapOverlayEl) closeMapOverlay(); // click on the dark backdrop closes it
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && mapOverlayEl.classList.contains('open')) closeMapOverlay();
+  });
 
   // --- Admin map (click to add a point, drag to reposition) ---
   let adminMapInstance = null;
