@@ -2629,7 +2629,13 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
     weatherToggleBtn.style.display = '';
 
     try {
-      const endDate = addDaysToDateStr(date, 4); // a few extra days, for the short outlook below the day curve
+      // A few extra days for the short outlook below the day curve, but never beyond what
+      // Open-Meteo's forecast actually covers (roughly 15 days from today) — requesting
+      // further out than that gets the whole call rejected with an HTTP 400.
+      const maxForecastDate = addDaysToDateStr(todayStr(), 15);
+      let endDate = addDaysToDateStr(date, 4);
+      if (endDate > maxForecastDate) endDate = maxForecastDate;
+      if (endDate < date) endDate = date;
       const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat + '&longitude=' + loc.lon +
         '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
         '&hourly=temperature_2m,weather_code&current_weather=true&timezone=auto' +
@@ -2660,18 +2666,21 @@ const ADMIN_EMAIL = "hilary@europe2026.com";
       detailsHtml += '<div class="weather-chart-hint">← swipe/scroll sideways →</div>';
       detailsHtml += '<div class="weather-chart" data-nowx="' + (chart.nowX != null ? chart.nowX : 0) + '">' + chart.html + '</div>';
 
-      // Short outlook for the next few days, at this same location
-      detailsHtml += '<div class="weather-section-label">Next Days in ' + escapeHtml(loc.name) + '</div>';
+      // Short outlook for the next few days, at this same location (only if any are
+      // actually within Open-Meteo's forecast range)
       const days = data.daily.time;
-      for (let i = 1; i < days.length; i++) {
-        const dd = new Date(days[i] + 'T12:00:00');
-        const wd = dd.toLocaleDateString('en-GB', { weekday: 'short' });
-        const code = data.daily.weather_code[i];
-        const max = Math.round(data.daily.temperature_2m_max[i]);
-        const min = Math.round(data.daily.temperature_2m_min[i]);
-        detailsHtml += '<div class="weather-day-row"><span class="wd">' + wd + '</span>' +
-          '<span class="icon">' + weatherIcon(code) + '</span>' +
-          '<span class="temps">' + max + '°<span class="min">/' + min + '°</span></span></div>';
+      if (days.length > 1) {
+        detailsHtml += '<div class="weather-section-label">Next Days in ' + escapeHtml(loc.name) + '</div>';
+        for (let i = 1; i < days.length; i++) {
+          const dd = new Date(days[i] + 'T12:00:00');
+          const wd = dd.toLocaleDateString('en-GB', { weekday: 'short' });
+          const code = data.daily.weather_code[i];
+          const max = Math.round(data.daily.temperature_2m_max[i]);
+          const min = Math.round(data.daily.temperature_2m_min[i]);
+          detailsHtml += '<div class="weather-day-row"><span class="wd">' + wd + '</span>' +
+            '<span class="icon">' + weatherIcon(code) + '</span>' +
+            '<span class="temps">' + max + '°<span class="min">/' + min + '°</span></span></div>';
+        }
       }
 
       weatherDetailsEl.innerHTML = detailsHtml;
